@@ -1,0 +1,95 @@
+{
+  "piece": "type",
+  "round": 3,
+  "winner": "theirs",
+  "margin": "clear",
+  "gap": "The ink is lighter than the paper: glyphs render at #FFFFFF on a #F9F9F9 background, a contrast ratio of roughly 1.10:1 against A's #1C1C1C at 16.2:1. Probing pixels across the word 'knife' returns 249,254,255,249 — the darkest pixel anywhere in B's text column is 249, exactly the background value. On top of that, '**bottle**' and '## What the sea keeps' render at the same weight and same colour as body text: no bold, no italic, no dimmed markers.",
+  "gapTheirs": "No size hierarchy in headings: the H1 '# The Lighthouse' and the H2 '## What the sea keeps' both measure a 38-39px ink band — identical to the 38-39px band of body text. Rank is carried by weight alone, so H1 and H2 are typographically indistinguishable from each other, and each heading gets exactly the same 144px of space above it as an ordinary paragraph break (2 x the 72px line pitch). Nothing in the vertical rhythm says 'a section starts here'.",
+  "verdict": "B is not a typographic choice, it is an absence of one — white type on off-white paper, where the only way I could read the passage was to push a 96-100% levels curve through the file. Every enrichment is gone with it: the asterisks around 'bottle' sit at the same weight and colour as the prose, so the markup is louder than the emphasis it marks. A gets the fundamentals right that B abandons — #1C1C1C ink, syntax marks recessed four steps to #9E9E9E so '#' and '*' fall out of the reading line, a 3px cyan caret at full 72px line height. A's own failure is that its headings only pretend to be headings: same cap height as body, same air above, bold and nothing else, which means at a glance a section break reads as a paragraph that happens to be emphasised.",
+  "oursShot": "dev/shots/type/r3-duo-ours.png",
+  "theirsShot": "dev/shots/oracle/type/duo.png",
+  "refSource": "dev/shots/oracle/type/ — the Parity oracle frozen by tools/gate oracle type from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs adf473b575198cc3",
+  "builderNote": "the type Piece's first native round: Faces by family, absolute pixel sizes, the liquid leading split three ways, and the 64-character measure",
+  "secondary": [
+    "Identical typeface and metrics in both: 72px line pitch (36 CSS px), 37-39px glyph ink band, ~1.8 line-height ratio at ~20px monospace",
+    "A dims markers to #9E9E9E against #1C1C1C body — '#', '##', '*', '**' and list hyphens all recede; B leaves every marker at full text colour",
+    "A's caret is 6px at 2x (3 CSS px), #00B5FF, spanning the full 72px line box — the only saturated chroma on an otherwise pure-greyscale page, which is loud for a prose environment",
+    "Both set a ~741 CSS px measure at ~62 monospace characters per line — at the long end of comfortable for continuous prose",
+    "Blank-line spacing in both is exactly one line pitch (144px baseline-to-baseline), so paragraph separation and section separation are metrically the same gap",
+    "B is scrolled mid-document with a visible scrollbar and ~750px of empty page below the final line; A shows the passage from its first heading"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "cf72629",
+    "binary": "a858ab95804023c6"
+  },
+  "states": [
+    {
+      "name": "duo",
+      "ours": "dev/shots/type/r3-duo-ours.png",
+      "theirs": "dev/shots/oracle/type/duo.png",
+      "blind": "dev/shots/blind/type/duo",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The ink is lighter than the paper: glyphs render at #FFFFFF on a #F9F9F9 background, a contrast ratio of roughly 1.10:1 against A's #1C1C1C at 16.2:1. Probing pixels across the word 'knife' returns 249,254,255,249 — the darkest pixel anywhere in B's text column is 249, exactly the background value. On top of that, '**bottle**' and '## What the sea keeps' render at the same weight and same colour as body text: no bold, no italic, no dimmed markers.",
+      "gapTheirs": "No size hierarchy in headings: the H1 '# The Lighthouse' and the H2 '## What the sea keeps' both measure a 38-39px ink band — identical to the 38-39px band of body text. Rank is carried by weight alone, so H1 and H2 are typographically indistinguishable from each other, and each heading gets exactly the same 144px of space above it as an ordinary paragraph break (2 x the 72px line pitch). Nothing in the vertical rhythm says 'a section starts here'.",
+      "verdict": "B is not a typographic choice, it is an absence of one — white type on off-white paper, where the only way I could read the passage was to push a 96-100% levels curve through the file. Every enrichment is gone with it: the asterisks around 'bottle' sit at the same weight and colour as the prose, so the markup is louder than the emphasis it marks. A gets the fundamentals right that B abandons — #1C1C1C ink, syntax marks recessed four steps to #9E9E9E so '#' and '*' fall out of the reading line, a 3px cyan caret at full 72px line height. A's own failure is that its headings only pretend to be headings: same cap height as body, same air above, bold and nothing else, which means at a glance a section break reads as a paragraph that happens to be emphasised.",
+      "secondary": [
+        "Identical typeface and metrics in both: 72px line pitch (36 CSS px), 37-39px glyph ink band, ~1.8 line-height ratio at ~20px monospace",
+        "A dims markers to #9E9E9E against #1C1C1C body — '#', '##', '*', '**' and list hyphens all recede; B leaves every marker at full text colour",
+        "A's caret is 6px at 2x (3 CSS px), #00B5FF, spanning the full 72px line box — the only saturated chroma on an otherwise pure-greyscale page, which is loud for a prose environment",
+        "Both set a ~741 CSS px measure at ~62 monospace characters per line — at the long end of comfortable for continuous prose",
+        "Blank-line spacing in both is exactly one line pitch (144px baseline-to-baseline), so paragraph separation and section separation are metrically the same gap",
+        "B is scrolled mid-document with a visible scrollbar and ~750px of empty page below the final line; A shows the passage from its first heading"
+      ]
+    },
+    {
+      "name": "quattro",
+      "ours": "dev/shots/type/r3-quattro-ours.png",
+      "theirs": "dev/shots/oracle/type/quattro.png",
+      "blind": "dev/shots/blind/type/quattro",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The ink is lighter than the paper: glyphs render #FFFFFF on a #F9F9F9 page — a contrast ratio of about 1.06:1, versus A's #1C1C1C on the same #F9F9F9 at roughly 14.6:1. Frame-wide maximum saturation is 4.3%, so there is no coloured caret either; the cursor is a near-white hairline against near-white, where A's is a 6px (3 CSS px) #00B5FF bar spanning the full 36 CSS px line.",
+      "gapTheirs": "Headings defect to a proportional grotesque while body and italic stay mono, and the H2 gets no size step at all: H1 ascender-to-descender is 38px, H2 is 31px — identical to body's 31px. So '## What the sea keeps' is body-size, carried only by weight, and bold spans like 'bottle' render at a proportional advance inside a monospace line, breaking the character column mid-sentence. The italic, by contrast, is a true mono italic on the grid — so the family switch is inconsistent, not a policy.",
+      "verdict": "B is not a typeface choice, it is an absence of one — white text on off-white, 1.06:1, invisible until I level-stretched the file to confirm there was a document under there at all. Even amplified it does nothing with the type: '##' and '**bottle**' sit at full body ink, same weight, same colour as the prose, so the markup is louder than the words and the structure is flat. A actually sets the passage — markers muted to about #B0B0B0, a real mono italic rather than a slanted roman, a caret you can find without hunting — but its heading logic is half-built: H2 is the same size as body text and the bold jumps to a proportional sans, so 'bottle' visibly falls off the monospace column that the rest of the line is standing on. Same 36 CSS px line pitch, same ~18px mono, same paper in both, so the rhythm is a wash; A wins on ink and on markdown weight, and loses nothing that would stop a writer typing.",
+      "secondary": [
+        "Identical vertical rhythm: both 72px (36 CSS px) baseline pitch, paragraph gap exactly 144px = one full blank line",
+        "Both ~17.9px mono at ~2.0 line-height ratio — loose for long-form, but identical, so not a differentiator",
+        "B parks a hard #959595 scrollbar (~5000px of chrome) at the right edge; A shows none",
+        "B's caret line is sliced by the viewport top edge (ink starts at row 1) while ~635px of empty canvas sits below the last line; A has an 83 CSS px top margin and fills to row 1705",
+        "Measure: A ~70 characters per line vs B ~67 — negligible either way",
+        "A's body ink at #1C1C1C / 14.6:1 is stark for hours of reading; ~#333 would sit easier without losing authority"
+      ]
+    },
+    {
+      "name": "mono",
+      "ours": "dev/shots/type/r3-mono-ours.png",
+      "theirs": "dev/shots/oracle/type/mono.png",
+      "blind": "dev/shots/blind/type/mono",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Body ink is pure #FFFFFF on a #F9F9F9 ground — 1.05:1 contrast, i.e. white ink on near-white paper. Measured across the whole text column the minimum luminance is 249 (the only pixel below that in the entire file is the #959595 scrollbar). B's ink is #1C1C1C at 16.19:1. On top of that A applies zero styled rendering: h2 stroke coverage 0.151 vs body 0.141 over the identical string (+7% = the same regular weight), where B's h2 is 0.233 (+64%) and **bottle** is 0.267 (+88%); and A's '##', '**' and '-' are #FFFFFF, byte-identical to the prose, against B's #9E9E9E. No caret anywhere in frame either — an erode test for any 1px column with 50 consecutive near-white rows returns 0, while B has a 6x72px (3x36 CSS) #00B5FF bar.",
+      "gapTheirs": "Ink is #1C1C1C — 16.19:1 on #F9F9F9, a hard screen-black that hammers at 20px/1.8 over a working session; ~#2E2E2E (≈11:1) is where a long-form surface should sit. And the recessive greys are not one value: '#'/'##'/'**' are #9E9E9E (2.54:1) but the list hyphen is #7A7A7A (4.0:1) — two different marker greys in the same left margin, so the bullets sit a step louder than the heading marks for no reason.",
+      "verdict": "A is not a typographic choice, it is a broken colour token: #FFFFFF text on #F9F9F9 paper, 1.05:1, a page you can only read by tilting the screen. Everything downstream is dead with it — headings render at body weight, '##' and '**' carry exactly the same ink as the sentences they mark, and there is no caret in frame at all, so you cannot even find where you are typing. B is the same font at the same 20px/36px on the same 63ch measure, but it actually puts ink down: real bold on headings, a true cursive italic (single-storey 'a'), markers pushed back to #9E9E9E, and a 3px cyan caret standing the full line-height. B's own sins are real — near-black ink and h1, h2 and body all at the identical 39px ascender-to-descender band, so a '# ' and a '## ' produce visually identical lines — but that is a hierarchy argument, not a legibility one.",
+      "secondary": [
+        "Shared geometry is identical: 673px@2x left margin, 24px@2x monospace advance (~20px), 72px@2x line pitch (36 CSS, ~1.8 ratio), same wrap point on 'and no'",
+        "Blank line = exactly 144px@2x = 2x line pitch in both — one full empty line, correct, no half-leading fudge",
+        "B: h1 'The Lighthouse' and h2 'What the sea keeps' both measure a 39px asc-desc band at the same 24px cell — zero size step between levels, only the dimmed marker count distinguishes them, at 2.54:1",
+        "B's italic is a genuine italic cut (single-storey 'a', slanted 'g'), not a synthesized oblique slant",
+        "A is the only file with a visible scrollbar (#959595), and it sits scrolled so the top line is clipped mid-x-height with ~1000px of dead paper below the last line — the passage is stranded in the upper half",
+        "A is effectively greyscale (max HSL saturation 0.043); B carries one accent, #00B5FF, spent solely on the caret"
+      ]
+    }
+  ],
+  "at": "2026-08-28T18:26:47.030Z"
+}

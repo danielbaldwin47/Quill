@@ -187,7 +187,7 @@ pub enum Ink {
     /// The mark is not a line over the body's ink. The Design oracle re-inks
     /// the run and rules it in the one colour, which is why this is an ink
     /// here and not a decoration in the app's tag table (#354,
-    /// `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). A struck
+    /// `dev/ref/ia/mac-native/VERDICTS.md` § The Style Check mark). A struck
     /// phrase therefore **loses** a Category it was carrying — Style check
     /// outranks Syntax highlight on the same bytes, an ordering rather than a
     /// layering — and out of focus it loses this in turn, because the dim is
@@ -350,7 +350,7 @@ pub struct Run {
 /// [`Look`] names an ink as a role because Markup alone cannot know which
 /// ground it is on. Focus can: the dim tier is a colour of the palette's rather
 /// than a role of Markup's, and no role survives it — a dim marker, a dim link
-/// and dim prose are the one grey (`legacy/app/css/focus.css:31-40`). So the
+/// and dim prose are the one grey (`dev/legacy/app/css/focus.css:31-40`). So the
 /// tiered flattening resolves the last of it and hands the app a colour, which
 /// is what `docs/architecture.md` § Annotators means by runs carrying "one
 /// precomputed colour and alpha each".
@@ -474,7 +474,7 @@ pub fn flatten(spans: &[Span]) -> Vec<Run> {
 /// them, which is what makes nesting work: emphasis inside strong sets the
 /// slant and keeps the weight. The marks that reset are the delimiters —
 /// [`Mark::Markup`] and its two named kin — because a marker is upright and at
-/// the prose's weight wherever it sits; `legacy/app/css/markup.css` says it in
+/// the prose's weight wherever it sits; `dev/legacy/app/css/markup.css` says it in
 /// one line, `.md-mark { color: var(--mark); font-weight: 400; font-style:
 /// normal }`, and only its colour has moved since (#198).
 fn resolve(mark: Mark, under: Look) -> Look {
@@ -708,7 +708,7 @@ fn tinted<'a>(runs: &'a [Run], spans: &[Span], annotated: Annotated) -> Cow<'a, 
 /// Style check's half of the precedence. It runs after [`tint`] and takes a
 /// Category's ink with the body's, because the Design oracle draws a struck
 /// word at the struck ink whether or not a Category had coloured it (#354,
-/// `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). The same guard
+/// `dev/ref/ia/mac-native/VERDICTS.md` § The Style Check mark). The same guard
 /// [`tint`] carries stands here for the same reason: a marker, a link's
 /// plumbing and a code span are not in the prose stream, so no span reaches
 /// one, and if a mapping ever hands one over it keeps the mark it has.
@@ -777,7 +777,7 @@ fn tint(look: Look, category: Category) -> Look {
 /// out of focus nothing has a voice of its own: `focus.css:31-40` flattens
 /// markers, link text, URLs, quotes, code and struck text alike to
 /// `--ink-dim`. That the marker on the caret's own line holds the full `mark`
-/// (`legacy/app/css/markup.css:39`, which #37 left to this ticket) is this
+/// (`dev/legacy/app/css/markup.css:39`, which #37 left to this ticket) is this
 /// table's first row: the caret's line is bright, and bright is the Markup
 /// colour.
 #[must_use]
@@ -1500,9 +1500,9 @@ mod tests {
     // The tiered flattening: Markup × Focus into one colour a run.
 
     /// The passage the judged states are shot against, at the caret they are
-    /// shot at (`shots/oracle/states.json`).
+    /// shot at (`dev/shots/oracle/states.json`).
     fn sample() -> Document {
-        Document::open(Path::new("../ref/sample.md"))
+        Document::open(Path::new("../dev/ref/sample.md"))
             .expect("the shared test passage is in the repo")
     }
 
@@ -1641,7 +1641,7 @@ mod tests {
         );
     }
 
-    /// `legacy/app/css/focus.css:31-40`: out of focus nothing keeps a voice of
+    /// `dev/legacy/app/css/focus.css:31-40`: out of focus nothing keeps a voice of
     /// its own. On the caret's own line the marker is the full marker grey —
     /// `markup.css:39`, which #37 left to this ticket — and bright is what says
     /// so, because bright is the Markup colour untouched.
@@ -1842,7 +1842,7 @@ mod tests {
 
     /// The judged Markup passage, which the Piece is shot on.
     fn oracle() -> String {
-        std::fs::read_to_string("../shots/oracle/markup.md")
+        std::fs::read_to_string("../dev/shots/oracle/markup.md")
             .expect("the judged Markup passage is in the repo")
     }
 

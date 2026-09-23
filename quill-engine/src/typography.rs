@@ -16,7 +16,7 @@
 //! ([ADR 0015](https://github.com/danielbaldwin47/Quill/blob/main/docs/adr/0015-the-design-oracle.md),
 //! `docs/design.md` § Text sizes). The page around a row — the measure, the
 //! gutter, the band the caret's row is kept in — is still the Parity oracle's
-//! `legacy/app/css/page.css`, in its own order so the two land on the same
+//! `dev/legacy/app/css/page.css`, in its own order so the two land on the same
 //! integers.
 
 use std::ops::RangeInclusive;
@@ -24,7 +24,7 @@ use std::ops::RangeInclusive;
 use crate::settings::{Face, default_step};
 
 /// The measure, in characters: iA's default line-length limit, `--measure:
-/// 64ch` in `legacy/app/css/type.css`.
+/// 64ch` in `dev/legacy/app/css/type.css`.
 pub const MEASURE: u32 = 64;
 
 /// The cell the Quill Faces are cut on, in ems.
@@ -59,7 +59,7 @@ const PAGE_TOP: u32 = 60;
 const PAGE_BOTTOM: f64 = 460.0 / 857.0;
 
 /// How much of the view is kept above the caret's row, and how much below:
-/// `scroll-padding: 10vh 0 28vh` in `legacy/app/css/page.css`.
+/// `scroll-padding: 10vh 0 28vh` in `dev/legacy/app/css/page.css`.
 ///
 /// The two are not equal because a writer reads up and writes down. The room
 /// that matters is the room the next line will need, so the band sits high in
@@ -72,7 +72,7 @@ const BAND_BELOW: f64 = 0.28;
 ///
 /// The Text Size menu steps rather than names a value, so the three numbers
 /// here were measured off the app at every size it reaches, on a scale-2
-/// display: `ref/ia/mac-native/NOTES.md` § 11 is the table, and this is that
+/// display: `dev/ref/ia/mac-native/NOTES.md` § 11 is the table, and this is that
 /// table.
 #[derive(Clone, Copy, Debug)]
 struct Rung {
@@ -122,7 +122,7 @@ const WIDE: [Rung; STEPS as usize] = [
 
 /// The middle class's ladder, step 0 to step 13.
 ///
-/// `ref/ia/mac-native/NOTES.md` § State 25, walked at 960 pt one Text Size
+/// `dev/ref/ia/mac-native/NOTES.md` § State 25, walked at 960 pt one Text Size
 /// click at a time. **It is not the wide ladder scaled.** The cell against
 /// [`WIDE`]'s at the same step wanders 0.9195 … 0.8888 with a dip to 0.8211
 /// at step 6, turning several times, so no rung here is derivable from the
@@ -183,7 +183,7 @@ const NARROWEST: [Rung; STEPS as usize] = [
 /// two places at every text size and at every line-length limit, and at
 /// 1200 pt a full container of the wide type fits inside the window with 400
 /// px to spare and the type shrinks anyway, so container overflow is not the
-/// trigger (`ref/ia/mac-native/NOTES.md` § State 22, `docs/design.md` row
+/// trigger (`dev/ref/ia/mac-native/NOTES.md` § State 22, `docs/design.md` row
 /// Window limitation).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SizeClass {
@@ -570,7 +570,7 @@ pub fn column(view: u32, face: Face, size: Size) -> Column {
 /// The Design oracle opens an empty document's caret box **164 device pixels**
 /// below its window's top edge (#227). #231 re-shot that window on the original
 /// 14-inch M1 MacBook Pro and settled the two things one point could not say
-/// (`ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § #231 — the page top,
+/// (`dev/ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § #231 — the page top,
 /// `VERDICTS.md` § Found here):
 ///
 /// - **It does not scale with the pitch.** The box top is 164 at steps 0, 5 and
@@ -599,10 +599,10 @@ pub fn page_top(scale: f64) -> u32 {
 /// that the end of a draft stops well clear of the bottom edge rather than
 /// against it.
 ///
-/// The Design oracle scrolled to the end of `ref/sample.md` keeps **460 pt**
+/// The Design oracle scrolled to the end of `dev/ref/sample.md` keeps **460 pt**
 /// of air under the last row of a 949 pt window — 48.5 % of the whole window —
 /// where the Parity oracle keeps 30 % (`page.css` `--page-bottom`).
-/// `ref/ia/mac-native/NOTES.md` § State 27 is the measurement and
+/// `dev/ref/ia/mac-native/NOTES.md` § State 27 is the measurement and
 /// `docs/design.md` row Page bottom carries the derivation. A share rather
 /// than a constant, because that is what both oracles hold it as.
 ///
@@ -656,7 +656,7 @@ mod tests {
     use super::*;
     use crate::settings::{Choice, default_step, type_steps};
 
-    /// `ref/ia/mac-native/NOTES.md` § 11, written out again: step, em in
+    /// `dev/ref/ia/mac-native/NOTES.md` § 11, written out again: step, em in
     /// logical pixels, and pitch and caret width in device pixels at scale 2.
     ///
     /// A second copy on purpose. The ladder is measurement rather than
@@ -726,7 +726,7 @@ mod tests {
         }
     }
 
-    /// `ref/ia/mac-native/NOTES.md` § State 25's table, written out again: the
+    /// `dev/ref/ia/mac-native/NOTES.md` § State 25's table, written out again: the
     /// step, then the cell in device pixels at scale 2 and the line pitch in
     /// the same, for the narrowest class and the middle one.
     ///
@@ -1101,7 +1101,7 @@ mod tests {
 
     #[test]
     fn the_narrowest_class_keeps_the_margin_419_measured_at_every_step() {
-        // `ref/ia/mac-native/narrow-419-margins-steps.json`, halved: the side
+        // `dev/ref/ia/mac-native/narrow-419-margins-steps.json`, halved: the side
         // margin in device pixels at scale 2, at the narrowest window the app
         // allows and at the widest window of the class. The two columns are
         // the two constants of the margin rule, and the tail of each is the

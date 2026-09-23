@@ -34,7 +34,7 @@ What `/code-review` holds a diff to, beyond the smell baseline the skill carries
 
 - A change to what a `tools/gate` subcommand prints or exits with changes `usage()` and `docs/agents/gate.md` in the same commit. (0cd10a1, a2db4c0, c703b17, e439bb6, 90f8b8d)
 - An error names the case that produced it, with the exit code `gate.md` gives that case, and interpolates the flag or value once (`{flag}`) rather than spelling it. (c703b17, 90f8b8d, #181)
-- Every flag a `shots/oracle/states.json` default or `tools/harness.mjs` passes still parses after the change. (#162's `--size 20`)
+- Every flag a `dev/shots/oracle/states.json` default or `tools/harness.mjs` passes still parses after the change. (#162's `--size 20`)
 - A command that shoots nothing deletes nothing, and a tool that removes tracked files has a selftest asserting what survives. (#161's sweep)
 - A selftest's fixture is derived from the file it checks (`fingerprint.json`'s keys), never a copied literal. (#161, #165)
 

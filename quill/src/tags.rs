@@ -19,14 +19,14 @@
 //! beside one.
 //!
 //! That is what the Design oracle draws: `mac-native-19-{light,dark}-wrapped-markers`
-//! and their `-h6` pair, measured in `ref/ia/mac-native/CAPTURE-2026-09-09.md`
+//! and their `-h6` pair, measured in `dev/ref/ia/mac-native/CAPTURE-2026-09-09.md`
 //! § #241 and `NOTES.md` § State 14 — `- ` and `> ` anchor their continuations
 //! two cells past the body column and `123. ` five, on both grounds and under
 //! the widest heading alike. The rule is `docs/design.md` row What hangs, and
 //! [ADR 0016](../../docs/adr/0016-the-text-container-is-78-cells.md) — whose
 //! title is the older half of it — was narrowed to the same reading by #241.
 //!
-//! The Parity oracle could hang nothing at all — `legacy/app/css/markup.css`
+//! The Parity oracle could hang nothing at all — `dev/legacy/app/css/markup.css`
 //! says why: a `<textarea>` takes no per-line horizontal shift, so the web app
 //! bought the same calm with contrast instead of position — and with no oracle
 //! for the rest, #102 read the marketing frames' `#` in the margin as a rule
@@ -64,7 +64,7 @@ use quill_engine::typography;
 use crate::editor::INK_WEIGHT;
 
 /// The weight a heading or a strong is set at: `.md-h`, `.md-strong { font-
-/// weight: 700 }` of `legacy/app/css/markup.css`.
+/// weight: 700 }` of `dev/legacy/app/css/markup.css`.
 ///
 /// Bold at body size, in the same Face and the same ink as the prose. The
 /// level reads from the markers, so nothing about the text image jumps when a
@@ -279,7 +279,7 @@ pub fn well_leading(buffer: &gtk::TextBuffer, leading: typography::Leading) {
 /// [`Role::LinkRule`] rather than the link colour at an opacity, because the
 /// Design oracle draws the hairline the same under a full-ink URL as under a
 /// quieted one — it is its own ink, not a tint of the text above it (#198,
-/// `ref/ia/mac-native/NOTES.md` § Found here: the link's ink and the code
+/// `dev/ref/ia/mac-native/NOTES.md` § Found here: the link's ink and the code
 /// ground).
 fn underline(buffer: &gtk::TextBuffer, colours: &Colours) -> gtk::TextTag {
     let underline = tag(buffer, "decoration-underline", |tag| {
@@ -314,7 +314,7 @@ const STYLE_MARK: &str = "decoration-style-";
 /// colour of its own is drawn in the run's foreground. So the glyphs and the
 /// rule come out the one colour the Design oracle draws them in, the strike
 /// follows the run into the Focus dim, and a Category the word was carrying is
-/// gone before this tag is asked for (#354, `ref/ia/mac-native/VERDICTS.md`
+/// gone before this tag is asked for (#354, `dev/ref/ia/mac-native/VERDICTS.md`
 /// § The Style Check mark; `docs/design.md` § Rows, Style check mark).
 ///
 /// The rule's **thickness and position** are not set here either, because a
@@ -368,7 +368,7 @@ pub(crate) const SPELL_MARK: &str = "decoration-spell";
 ///
 /// **No property at all.** The mark the Design oracle draws is a row of round
 /// dots — 3 pt across on a 4 pt pitch, 6 pt under the baseline
-/// (`ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, `docs/design.md`
+/// (`dev/ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, `docs/design.md`
 /// row *Spell mark*) — and no Pango underline is that shape: its seven values
 /// are none, single, double, low, error and the two line variants, of which
 /// `error` is a wave and the rest are rules, each drawn at the face's own
@@ -1137,7 +1137,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
                 paragraph(buffer, document, &span.at, &heading(buffer, level));
             }
             // Out of focus a code block keeps its glyphs and loses its well —
-            // `legacy/app/css/focus.css:42-43` sets the background transparent
+            // `dev/legacy/app/css/focus.css:42-43` sets the background transparent
             // — so that the dim is one flat grey rather than a stack of lit
             // panels. The same rule the flattening applies to a code span's
             // own ground ([`quill_engine::annotate::Paint`]).
@@ -1163,7 +1163,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             // bytes are the destination.
             //
             // Out of focus it goes, as the well does:
-            // `legacy/app/css/focus.css:41` takes the rule's colour to
+            // `dev/legacy/app/css/focus.css:41` takes the rule's colour to
             // `transparent` on a dimmed URL, so a dim link is grey words and
             // nothing under them.
             Mark::Url if tier == Tier::Bright => {
@@ -1728,7 +1728,7 @@ mod tests {
     /// `mac-native-19-{light,dark}-wrapped-markers` and their `-h6` pair:
     /// bullet and quote continuations start 2 × 25.6 device pixels past the
     /// body and the ordered item's 5 × 25.6, on both grounds and under the
-    /// widest heading alike (`ref/ia/mac-native/CAPTURE-2026-09-09.md` § #241).
+    /// widest heading alike (`dev/ref/ia/mac-native/CAPTURE-2026-09-09.md` § #241).
     const RUNS: [(&str, f64); 3] = [("- ", 2.0), ("123. ", 5.0), ("> ", 2.0)];
 
     /// [`RUNS`]' advances, as the layout may advance them, the two ways
@@ -1967,7 +1967,7 @@ mod tests {
     #[test]
     fn no_face_moves_a_glyph_across_the_weights_and_cuts_the_tags_ask_for() {
         let context = faces();
-        let passage = std::fs::read_to_string("../shots/oracle/markup.md")
+        let passage = std::fs::read_to_string("../dev/shots/oracle/markup.md")
             .expect("the judged Markup passage is in the repo");
         for face in [Face::Duo, Face::Quattro, Face::Mono] {
             let prose = advance(&context, face, REGULAR, Slant::Upright, &passage);

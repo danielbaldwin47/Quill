@@ -1,0 +1,78 @@
+# The Mac rig
+
+What shot and measured the captures in `dev/ref/ia/shots/mac-native/`. It is the Mac counterpart of
+`dev/shots/caret/ia/wine/`, and it keeps that rig's vocabulary — *band*, *bar*, *fill*, *ink*,
+`gap<`/`gap>`, *solid*, *cut* — so the two evidence sets can be put in one table.
+
+It measures with Pillow rather than ImageMagick, because this machine has none, and it reads regions
+in **logical points** (the way `screencapture -R` takes them) while every number it prints is in
+**device pixels** at the display's backing scale.
+
+| file | what it is |
+|---|---|
+| `iarig.py` | the reading: ground, bands, bars, fills, ink runs, gaps, and the burst that beats the blink |
+| `fast.py` | the same readings off a numpy array, for the sweeps — `iarig`'s per-pixel scans are far too slow for three frames a size |
+| `states.py` | the driver: `reset()` lays the passage down fresh and puts the caret at Home, so no state depends on the one before it |
+| `drv.sh` | one verb per invocation for the menus, keys and window bounds |
+| `run_theme.py` | states 1, 2, 3, 6, 7, 8 and 10 for whichever appearance the app is in — run once per theme |
+| `run_caret.py` | the first pass at the caret and selection states, kept because its numbers are quoted in NOTES.md |
+| `sizes.py` | state 11: walks the Text Size menu from the bottom until the geometry stops moving |
+| `blink.py` | samples the caret's own pixels through Quartz at ~100 Hz — `screencapture` cannot time a blink |
+| `typeblink.py` | state 5: the same sampler on its own thread while keystrokes go in, so frames and keys share one clock |
+| `rows.py` | row bands taken from an unselected frame and read back out of a selected one, because a multi-row band has no gaps to split on |
+| `caretat.py`, `selN.sh` | put the caret at a known offset, or hold a known number of cells |
+| `run_markup.py` | state 17: every mark kind at rest, one frame per ground, plus a caret-on-heading control |
+| `marks.py` | a glyph run's ink — the colour furthest from the paper it holds at least six times |
+| `inks.py` | a line's runs grouped by the ink each carries, so a change of ink prints as one row |
+| `colour.py`, `display.icc` | a capture put back into the profile the committed captures were taken in |
+| `run_narrow.py` | #344, state 22: the Editor at seventeen window widths, text sizes and line-length limits — plain, three selection fills and select-all each, and the advance fitted over the fills. `--remeasure` re-reads the numbers off the committed frames without shooting |
+| `sweep_narrow.py` | #344: bisects the window width the type changes at. The pitch alone separates the size classes, so one frame a width is enough; its frames are scratch, and the two sides of each break are shot as states by `run_narrow.py` |
+| `run_templates.py` | #343, state 23: two passages in all four Preview Templates, each with an Editor control frame, for the first-line indent and the em |
+| `manifest_2026_09_10.py`, `measure_2026_09_10.py` | the 2026-09-10 manifest, and the reader that verifies it and re-reads every number in [`../CAPTURE-2026-09-10.md`](../CAPTURE-2026-09-10.md) off the frames |
+| `run_style.py` | #354, state 24: the Style Check mark on both grounds, per list, under Focus, under Syntax highlight and over a selection — each state shot twice, once with Style Check off, so every reading is a difference between two frames. The four list items carry no check the menu can be asked for, so it measures a list's state instead: a click is kept only if the frame moved the way the click should move it |
+| `measure_style_354.py`, `manifest_style_354.py` | #354's reader — the mark's colour, thickness and position, read in the columns a row's control frame leaves blank between two glyphs, plus the face's own strikeout metrics straight out of the `OS/2` table — and the manifest beside it |
+| `run_narrow_419.py` | #419, state 25: both narrow size classes at every text-size step — 960 pt and 400 pt at steps 0 … 13, plus 240, 320 and 440 pt at step 5. Per configuration the passage plain, select-all for the container, and four fills chosen *inside* that container rather than fixed, because a 40-cell run does not fit a row at step 13 of a 400 pt window; the body row is probed too, since the heading wraps in a narrow one. `--remeasure` re-reads the committed frames without shooting |
+| `ladder_419.py` | #419's control: the Text Size menu walked one click at a time with a frame after each, so a step is fixed by the walk and not by counting clicks out from Normal. It caught two dropped clicks that `run_narrow_419.py` could not see, and `measure_419.py` refuses to print a table that sits off its ladders |
+| `sweep_419.py`, `margins_419.py` | #419: the width the narrowest class's margin changes at, bisected the way `sweep_narrow.py` bisects the size classes — at three text sizes, since a break that moved with the size would not be the window's; and that margin at every step, one width at a time. A margin needs only the container's own left edge, so both shoot select-all frames and both keep them as scratch. `sweep_419.py` also records the bounds the app hands back for a window narrower than it allows, and `margins_419.py` keeps a plain frame beside each select-all one, because a pitch read off a frame whose text is all selected is the fill's gaps and not the line's |
+| `measure_419.py`, `manifest_419.py` | #419's reader — both ladders, their scale against the wide class, and the margins against the rule — and the manifest beside it |
+| `run_spell_400.py` | #400, state 26: the misspelling mark on both grounds, under Focus, under Syntax and over a selection, plus the word being typed, the autocorrect run and the correction menu. #354's shape — every state shot twice, once with Check Spelling While Typing off — and three things learned the hard way: the switch alone does not re-check a document already on the screen and `Check Document Now` finds the *next* misspelling rather than all of them, so the passage is pasted again under each setting; the pill over a word being typed takes Escape and ⌘↑, so a mouse click ends the word; and the mark is dotted, so aiming a right-click at the midpoint of a row's differing columns hits a word in between |
+| `measure_spell_400.py`, `manifest_400.py` | #400's reader — the mark's colour, dots, thickness and place against the baseline, read only where its ground is clean, with each mark named by the word it stands under and the coverage over a selection solved on the raw frames — and the manifest beside it |
+| `run_stats_381.py`, `measure_stats_381.py`, `manifest_381.py` | #381, state 27: the bar at the foot of the window and the counts on it, shot with the bar and again with `View > Toolbar > Hide`, because the gutter above it cannot be read off one frame. It carries three cautions of its own: a menu left open blocks `activate` for ever and takes `subprocess.run` with it, so every AppleScript has a clock on it and Escape goes before every menu; the counts are the bar's rightmost **ink** and not its rightmost difference, the bar's own ground running the width; and `Stats Only` answers to none of the four ways of pressing it. `--observe-only` re-asks the two behaviour questions without re-shooting the states in front of them |
+| `library_fixture_379.py` | #379's fixture: `--add` copies `dev/shots/oracle/library/` without its `manifest.json` into iA Writer's own Library, `--remove` takes away the list `--add` wrote and nothing else. It adds rather than swaps, so nothing the writer had is moved, and it removes by name rather than by pattern because the folder it is removing from is theirs |
+| `run_library_379.py` + `…379b.py` + `…379c.py` + `…379d.py` + `…379e.py`, `measure_library_379.py`, `manifest_379.py` | #379, state 28: the Library pane. The passes after the first need the pane's own geometry, and the first is what gives it: a click has to be aimed at a row the frame found. The reader takes the pane's edges off a column profile rather than off the L1 pair — showing the pane reflows the page, so the two frames differ nearly everywhere — and holds a row together with a 30 px gap, because a name and its own excerpt are 16 px apart while one row and the next are 40. Five passes is four too many and the history is kept because each one names a mistake worth not repeating: the title bar taken for the list's first row, a drag aimed 900 pt off the divider it was meant to grab, and a context menu that is not in the accessibility tree at all |
+| `display-calibrated-2025-12-15.icc` | the DisplayCAL profile the built-in display carries now, so the two can be compared rather than assumed equal |
+
+## Running it
+
+Needs Python with `Pillow`, `numpy` and `pyobjc-framework-Quartz` — on this machine they live in
+`.venv-rig/` at the repository root, not in the system Python — and the terminal must hold both
+**Screen Recording** (or `screencapture` returns a black frame) and **Accessibility** (or `osascript`
+cannot reach the app). Paths are relative to the repository root:
+
+    python3 rig/run_theme.py <output-dir> dark
+
+Set `IA_SAMPLE` to shoot a passage other than `dev/ref/sample.md`.
+
+Six cautions learned the hard way, all recorded in `../NOTES.md`, and three more for a Syntax
+state in [`../CAPTURE-ORIGINAL-MBP.md` § Repeating the run](../CAPTURE-ORIGINAL-MBP.md#repeating-the-run):
+
+- **A capture carries the display's profile**, so a frame shot today does not hold the same numbers
+  as one shot for states 1–16 unless it is converted (`colour.py`). Every new capture goes through
+  `normalise()` and then `check()`, which fails unless the paper and the body ink land back on the
+  values the § 4.2 rows hold. `check()` covers neutrals only: it passes on a frame whose saturated
+  colours are clamped, which is what the caret does — see the report above.
+
+- **`screencapture -l <windowid>` returns a black frame** for an occluded window on macOS 27, so the
+  deactivated states (6 and 7) close Finder's windows and activate Finder instead — focus moves and
+  nothing is drawn over the editor.
+- **Measure boundaries off a selection fill, never off a character count**, and turn Style Check off
+  before shooting anything but state 24, which is the state of Style Check itself. Reading a
+  style-check marker as a selection is the mistake
+  [#154](https://github.com/danielbaldwin47/Quill/issues/154) exists to stop repeating.
+- **`screencapture` will not write a dotted filename.** A scratch frame named `.scratch-00.png`
+  fails with "cannot write file to intended destination"; the same name without the dot writes.
+- **The Focus menu's item names are read lazily, and the first read of a session can be stale** —
+  it came back with `Enable Style Sheck` and `Other` where every later read gives
+  `Enable Style Check` and `Reference`. Read the menu before trusting a name.
+- **Do not paste over the app's own sample documents.** `states.reset()` is Select-All then paste;
+  make a scratch document with File -> New in Library first.

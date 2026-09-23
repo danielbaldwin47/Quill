@@ -11,7 +11,7 @@
 //!
 //! The tokenizer is Quill's own rather than the tagger crate's, because the
 //! word Syntax highlight colours is the word iA colours, and
-//! `ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § A contraction splits reads
+//! `dev/ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § A contraction splits reads
 //! that boundary off the running app, cell by cell, in five places at once: a
 //! contraction's suffix is a word of its own (`'ll` is blue where `I` beside
 //! it is plain), `n't` takes the `n` with it (`ca` blue, `n't` purple), a
@@ -333,7 +333,7 @@ mod tests {
 
     /// The Design oracle's own line, read cell by cell off
     /// `mac-native-308-original-mbp-light-syntax-tokens.png`
-    /// (`ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § A contraction splits).
+    /// (`dev/ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § A contraction splits).
     /// Five splits, and the colour on each side of each of them.
     #[test]
     fn the_five_splits_the_design_oracle_shows_are_the_five_this_tokenizer_makes() {

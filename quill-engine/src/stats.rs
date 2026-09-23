@@ -1,6 +1,6 @@
 //! Stats: the six numbers the bar can show, counted on the parser's events.
 //!
-//! What is here was the Parity oracle's word rule (`legacy/app/js/chrome.js`
+//! What is here was the Parity oracle's word rule (`dev/legacy/app/js/chrome.js`
 //! `count`), landed for the stats bar by the Chrome Piece (#128): a word was a
 //! run of non-whitespace with at least one letter or digit in it, counted over
 //! the raw text, Markdown included. The Stats spec (#387) replaces the text it
@@ -100,7 +100,7 @@ impl Statistic {
     }
 }
 
-/// The reading pace Reading Time counts at (`legacy/app/js/chrome.js` `WPM`).
+/// The reading pace Reading Time counts at (`dev/legacy/app/js/chrome.js` `WPM`).
 ///
 /// Brysbaert 2019, the meta-analysis of silent reading of English non-fiction.
 /// iA's own bar implies about 200; a writer is better served by the honest
@@ -406,11 +406,11 @@ mod tests {
     use super::*;
 
     fn sample() -> String {
-        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../ref/sample.md"))
-            .expect("ref/sample.md")
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../dev/ref/sample.md"))
+            .expect("dev/ref/sample.md")
     }
 
-    /// `ref/sample.md`, all six.
+    /// `dev/ref/sample.md`, all six.
     ///
     /// The words stay 188, the number the oracle's frozen `bars` shot shows:
     /// the passage's only Markup is bare markers and one bold word, and
@@ -627,7 +627,7 @@ mod tests {
     fn a_fifty_three_thousand_word_draft_counts_six_ways_inside_the_budget() {
         let draft = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../shots/latency/doc52k.md"
+            "/../dev/shots/latency/doc52k.md"
         ))
         .expect("the bench's longest draft is in the repo");
         let counted = std::time::Instant::now();

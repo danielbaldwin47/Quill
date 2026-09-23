@@ -2,7 +2,7 @@
 //
 //   node tools/ink-coverage.mjs <ours-crop.png> <oracle-crop.png> --ground dark|light [--json]
 //
-// The `theme` round 4 verdict (`progress/rounds/theme-r4.json`) gave `theme/dark` to the Design
+// The `theme` round 4 verdict (`dev/progress/rounds/theme-r4.json`) gave `theme/dark` to the Design
 // oracle on a rendering weight alone: at a byte-identical palette, ours laid down about 4% less
 // alpha-weighted glyph area on slightly larger glyphs, and the stem of the ordered-list `1`
 // covered 3.6 px against the oracle's 3.8 px. This is that measurement as a function, so a
@@ -27,7 +27,7 @@
 //
 // The `1` is found rather than pointed at: text rows are the runs of rows carrying ink, the
 // ordered-list line is the one whose second glyph is a full stop (the passage is
-// `ref/ia/mac-native/passage-markup.md`, and `1. ordered item` is its only line that opens that
+// `dev/ref/ia/mac-native/passage-markup.md`, and `1. ordered item` is its only line that opens that
 // way), and the stem is the glyph's rows from 40% to 80% of the way down, below the flag and above
 // the foot serif. Both forms print the rectangle that was taken for the `1`, so a reader can check
 // the glyph that was measured.

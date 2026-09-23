@@ -1,0 +1,107 @@
+{
+  "ran": "--regimes style,prose_end_of_draft",
+  "at": "2026-09-13T02:16:48.186Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "style",
+      "file": "dev/shots/latency/bench-style-20260913T021615.json",
+      "mean_ms": 1.83,
+      "worst_ms": 10.61,
+      "p50_ms": 1.63,
+      "p99_ms": 4.39,
+      "cold_ms": 187.41,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true,
+      "the_pointer_left_the_window": false
+    },
+    {
+      "regime": "prose_end_of_draft",
+      "file": "dev/shots/latency/bench-prose_end_of_draft-20260913T021648.json",
+      "mean_ms": 1.78,
+      "worst_ms": 5.18,
+      "p50_ms": 1.67,
+      "p99_ms": 3.74,
+      "cold_ms": 231.95,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true,
+      "the_pointer_left_the_window": false
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "regimes_the_pointer_left": [],
+  "regimes_not_scored": [],
+  "stage_first_client_ms": 318.98,
+  "pass": true,
+  "lines": [
+    "gate bench style: pass — mean 1.83 ms, worst 10.61 ms, p50 1.63 ms, p99 4.39 ms, cold 187.41 ms",
+    "gate bench prose_end_of_draft: pass — mean 1.78 ms, worst 5.18 ms, p50 1.67 ms, p99 3.74 ms, cold 231.95 ms",
+    "gate bench --regimes style,prose_end_of_draft: pass — 2 of 2 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "8209cea",
+    "binary": "9e3824fcdea5a6e3"
+  },
+  "fingerprint": {
+    "at": "2026-09-13T02:16:15.586Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "9e3824fcdea5a6e3",
+      "git_head": "8209cea",
+      "tree_was_dirty": true,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "quill-gate-2238379",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.2.3-arch1-3",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 3.18,
+      "busiest_processes": [
+        "194 Ryujinx",
+        "3.7 rust-analyzer",
+        "3.0 claude",
+        "2.2 helium",
+        "1.8 claude"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

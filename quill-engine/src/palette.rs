@@ -2,7 +2,7 @@
 //! and the match that narrows it as the writer types.
 //!
 //! With nothing typed the Palette is a map of the app in the order a writer
-//! meets it (`legacy/app/js/chrome.js`, `SECTIONS`); typing turns it into one
+//! meets it (`dev/legacy/app/js/chrome.js`, `SECTIONS`); typing turns it into one
 //! ranked list. Both are pure functions of the registry, so the popover only
 //! draws what it is handed.
 //!

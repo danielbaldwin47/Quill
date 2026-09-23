@@ -1,0 +1,98 @@
+{
+  "piece": "page",
+  "round": 5,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "No top or bottom margin on the sheet: the h1 sits 168px physical (84 CSS px) from the raw window edge with no chrome to buffer it, versus 238px in A, and at the foot a list line is guillotined mid-x-height at y=1800 with no fade or padding — left and right margins are considered, vertical ones are not.",
+  "gapTheirs": "The page is fenced by chrome B doesn't have: a ~60px-physical title bar reading 'Untitled.md' at top, and at the bottom a full-width #DFDFDF hairline at y=1748 with a permanent '188 words / 961 characters / 1 min read' strip below it. That costs ~56 CSS px of window and roughly two lines of text (first heading ink at y=238 vs B's y=168; A ends at 1748, B runs to 1800), and it replaces a page that continues with a page that stops at a rule.",
+  "verdict": "B is the page; A is a document window with a page in it. A's live word counter sits under every sentence you write, which is the one thing a drafting novelist does not want in peripheral vision, and its hairline turns the bottom of the text into a floor instead of a continuation. Worse for the eye: A leaves the '#' inline, so 'The Lighthouse' starts 26 CSS px and 'What the sea keeps' 39 CSS px to the right of the body edge — the left margin stair-steps every time a heading arrives, while B hangs the markers at x=571 and x=547 and keeps one unbroken vertical edge at 622 from title to body to bullet. B's own carelessness at the top and bottom edges is real but cheap to fix; A's is architectural.",
+  "oursShot": "dev/shots/page/r5-light-ours.png",
+  "theirsShot": "dev/shots/oracle/page/light.png",
+  "refSource": "dev/shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "",
+  "secondary": [
+    "A's left rag stair-steps 0 / 26 / 39 CSS px (body / h1 / h2); B's is flat at 622 for all three",
+    "B's hanging markers push ink out to x=547, so the ink block sits ~46 CSS px left of optical centre; A's body column is near-symmetric (622 left gutter vs 638 right)",
+    "line-height 38 vs 37 CSS px is a 1px difference — not a reason to prefer either",
+    "paragraph spacing identical in both: exactly 2× line pitch (152px A, 148px B)",
+    "caret is the same in both — #00B5FF, 3 CSS px, spanning the full line box rather than the font height, which reads as a slab in both",
+    "B fits 22 lines to A's ~20 in the same 1800px viewport",
+    "no top-bar divider in A, so the title floats — the only rule is the one under the text, which is the wrong place to put it"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "7113df0",
+    "binary": "197d2ccdbf1efbfd",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "dev/shots/page/r5-light-ours.png",
+      "theirs": "dev/shots/oracle/page/light.png",
+      "blind": "dev/shots/blind/page/light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No top or bottom margin on the sheet: the h1 sits 168px physical (84 CSS px) from the raw window edge with no chrome to buffer it, versus 238px in A, and at the foot a list line is guillotined mid-x-height at y=1800 with no fade or padding — left and right margins are considered, vertical ones are not.",
+      "gapTheirs": "The page is fenced by chrome B doesn't have: a ~60px-physical title bar reading 'Untitled.md' at top, and at the bottom a full-width #DFDFDF hairline at y=1748 with a permanent '188 words / 961 characters / 1 min read' strip below it. That costs ~56 CSS px of window and roughly two lines of text (first heading ink at y=238 vs B's y=168; A ends at 1748, B runs to 1800), and it replaces a page that continues with a page that stops at a rule.",
+      "verdict": "B is the page; A is a document window with a page in it. A's live word counter sits under every sentence you write, which is the one thing a drafting novelist does not want in peripheral vision, and its hairline turns the bottom of the text into a floor instead of a continuation. Worse for the eye: A leaves the '#' inline, so 'The Lighthouse' starts 26 CSS px and 'What the sea keeps' 39 CSS px to the right of the body edge — the left margin stair-steps every time a heading arrives, while B hangs the markers at x=571 and x=547 and keeps one unbroken vertical edge at 622 from title to body to bullet. B's own carelessness at the top and bottom edges is real but cheap to fix; A's is architectural.",
+      "secondary": [
+        "A's left rag stair-steps 0 / 26 / 39 CSS px (body / h1 / h2); B's is flat at 622 for all three",
+        "B's hanging markers push ink out to x=547, so the ink block sits ~46 CSS px left of optical centre; A's body column is near-symmetric (622 left gutter vs 638 right)",
+        "line-height 38 vs 37 CSS px is a 1px difference — not a reason to prefer either",
+        "paragraph spacing identical in both: exactly 2× line pitch (152px A, 148px B)",
+        "caret is the same in both — #00B5FF, 3 CSS px, spanning the full line box rather than the font height, which reads as a slab in both",
+        "B fits 22 lines to A's ~20 in the same 1800px viewport",
+        "no top-bar divider in A, so the title floats — the only rule is the one under the text, which is the wrong place to put it"
+      ]
+    },
+    {
+      "name": "narrow",
+      "ours": "dev/shots/page/r5-narrow-ours.png",
+      "theirs": "dev/shots/oracle/page/narrow.png",
+      "blind": "dev/shots/blind/page/narrow",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No bottom gutter: the column runs off the window edge with 0px padding — the last line starts at y=1796 and is sliced mid-glyph by the 1800px boundary, where B holds its last line 36px clear of a rule. A also gives 2px less leading (74px pitch vs 76, ~1.71 vs ~1.76 at the same 43px glyph size) and wraps 6 characters earlier (56ch/1539px column vs 62ch/1620px), so the same passage costs more scrolling.",
+      "gapTheirs": "Markdown markers sit inline instead of hanging, so the left edge breaks three times on one screen: body starts at x=142, but '# The Lighthouse' starts at 193 and '## What the sea keeps' at 217 — a 51–75px jog. A hangs '#' at 129 and '##' at 105 and lands every heading, body line and list item on the same 181px edge. B also crops the page: side margins 142/158px against A's 181/200, plus a title bar and a live '188 words / 961 characters / 1 min read' footer taking ~127px of vertical space.",
+      "verdict": "Same paper, same type, same caret — the fight is entirely about the left edge and the frame, and A wins both. B's headings shove themselves 51 and 75 pixels to the right of the body edge, which is exactly the ragged column an editor is supposed to prevent, and it does it while a word counter sits under your sentence counting them. A's page is unbroken and unfurnished; its sin is running the text into the bottom edge with a half-line guillotined at the viewport boundary, which is untidy but not something you look at while composing. Six characters of measure and 2px of leading do not buy back a column that won't hold a straight line.",
+      "secondary": [
+        "paper identical in both: #F9F9F9 corner to corner, no gradient or vignette",
+        "caret identical: 6px wide, #00B5FF, same x-height placement",
+        "B's markers are lighter (darkest pixel ~#9f) vs A's ~#7a — quieter grey, but wasted since they occupy the text column instead of the gutter",
+        "both blocks sit slightly left of optical centre (A 181/200, B 142/158); A's hanging markers push visible ink to x=105, so the ink block leans ~47px left",
+        "paragraph and heading rhythm match: +56px paragraph gap, 2x line pitch before/after headings in both",
+        "A's list bullet hangs at x=135 keeping list text on the 181px edge — B's list is below the fold, hidden behind the footer",
+        "top framing: A's first line at y=168 with nothing above it; B's at y=238 but only ~196px below its chrome bar"
+      ]
+    },
+    {
+      "name": "short",
+      "ours": "dev/shots/page/r5-short-ours.png",
+      "theirs": "dev/shots/oracle/page/short.png",
+      "blind": "dev/shots/blind/page/short",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Tighter vertical rhythm: line boxes are 74px vs A's 76px (≈1.62 vs ≈1.69 against ~22.6 CSS px type, ~13.7px advance), and it wraps ~2 characters earlier (~60ch vs A's ~62-63ch, longest ink run 1629px vs 1633px). Over a four-line paragraph B's block closes up ~8px more than A's.",
+      "gapTheirs": "Ragged left edge: A's '#' sits inline at x=622 so the heading's first word starts at x=673, while body text starts at x=623 — a 50px (25 CSS px, exactly one mono advance) step in the column's left edge. B hangs the marker out at x=571-594 and lands heading text at x=623, flush with the body, so the measure's left edge never moves.",
+      "verdict": "A's page has one flaw you cannot unsee: type a heading and the text column's left edge kicks 25px right, because the '#' is parked inside the measure instead of hanging outside it. B pays 1px per line of leading for a left margin that stays true through headings and paragraphs alike, and that is the trade every book compositor makes. Everything else is a photocopy — same paper hex, same 3px caret, same dimmed marker, same two-line paragraph gap — so A has nothing to buy its way out with. Two percent more air does not compensate for a margin that wobbles on every H1.",
+      "secondary": [
+        "Both park the block at the top: first ink at y=154 (A) / y=150 (B), ~76 CSS px down, leaving ~490-520 CSS px of dead paper below the last line — neither implies a typewriter or centred scroll position",
+        "Paragraph separation is exactly 2x line-height in both (152px A, 148px B); no first-line indent, no drift",
+        "B's caret sits ~0-1px off the preceding 'e'; A's clears it by ~6px — B's is technically correct placement but reads as a collision at this size",
+        "Left/right ink margins: A 622/626px, B 571/628px — both blocks are near-optically-centred, so A gains nothing there for its inline marker",
+        "Neither page offers any horizontal cue that the measure is deliberate: no visible column edge, no ruler, nothing to indicate the line length won't change when the window does"
+      ]
+    }
+  ],
+  "at": "2026-08-31T17:01:38.395Z"
+}

@@ -1,14 +1,14 @@
 //! The two designed grounds: the colour table, and the rule that picks a ground.
 //!
 //! Sixteen roles are the **Design oracle**'s, measured off iA Writer for Mac
-//! (`ref/ia/mac-native/VERDICTS.md` 4.2.1–4.2.16 and § Marker ink) and carried
+//! (`dev/ref/ia/mac-native/VERDICTS.md` 4.2.1–4.2.16 and § Marker ink) and carried
 //! by [`docs/design.md`](../../../docs/design.md) rows Paper · ink · dim,
 //! Accent, Active fill, Idle fill, Markers, Link, Syntax colours and Spell
 //! mark: paper, ink, the dimmed grey, the accent, the selection's two fills,
 //! the markers, the link's two greys, the code ground, the five Syntax
 //! highlight Categories and the misspelling mark. The other four — the rule,
 //! the shadow and the chrome's two texts — are the Parity oracle's, role for
-//! role out of `legacy/app/css/theme.css`, until they are measured in their
+//! role out of `dev/legacy/app/css/theme.css`, until they are measured in their
 //! turn (4.2.15 is still unknown), which is the split `design.md` § The
 //! palette is a file states.
 //!
@@ -92,7 +92,7 @@ impl Scheme {
 }
 
 /// How long the dim takes to cross from one tier to the other, in
-/// milliseconds: the oracle's `--focus-fade`, `legacy/app/css/focus.css:19`.
+/// milliseconds: the oracle's `--focus-fade`, `dev/legacy/app/css/focus.css:19`.
 ///
 /// The whole of the duration lives here, and [`fade`] and [`fade_ms`] are what
 /// read it: the app never spells `130` and asks this instead.
@@ -349,7 +349,7 @@ pub enum Role {
     /// The quiet tier: what the Design oracle drops a run to when it is still
     /// on the page but no longer the writer's voice. Style check's struck runs
     /// take it — glyphs and rule alike, because the mark re-inks the run rather
-    /// than ruling over its ink (#354, `ref/ia/mac-native/VERDICTS.md` § The
+    /// than ruling over its ink (#354, `dev/ref/ia/mac-native/VERDICTS.md` § The
     /// Style Check mark).
     ///
     /// One value per ground with three users — this, a link's plumbing
@@ -377,7 +377,7 @@ pub enum Role {
     ///
     /// The five Syntax highlight colours are the Design oracle's own, measured
     /// off the running app on both grounds by the capture ticket #308
-    /// (`ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § The ten Category
+    /// (`dev/ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § The ten Category
     /// colours) and held by [`Colours::LIGHT`], [`Colours::DARK`] and the
     /// oracle table in this module's tests.
     SyntaxNoun,
@@ -393,7 +393,7 @@ pub enum Role {
     SyntaxConjunction,
     /// The dots under a misspelled word, drawn by Spell check.
     ///
-    /// Measured off the Design oracle: `ref/ia/mac-native/NOTES.md` § State 26
+    /// Measured off the Design oracle: `dev/ref/ia/mac-native/NOTES.md` § State 26
     /// § The mark itself, the *Ink on the paper* row. Two values and not one
     /// with an alpha — macOS draws the mark in a dynamic system colour with a
     /// value per appearance, and no coverage flattens either onto the other's
@@ -403,7 +403,7 @@ pub enum Role {
     /// File List.
     ///
     /// The three Library roles are the Design oracle's, measured off the pane
-    /// on both grounds: `ref/ia/mac-native/NOTES.md` § State 28 § The pane is
+    /// on both grounds: `dev/ref/ia/mac-native/NOTES.md` § State 28 § The pane is
     /// two columns and three grounds. A `palette` file that names none of them
     /// derives them from its paper and chrome grey ([`Colours::overlaid`]).
     OrganizerBg,
@@ -542,7 +542,7 @@ impl Colours {
         rule: Colour::rgba(0, 0, 0, 0.10),
         shadow: Colour::rgba(0, 0, 0, 0.18),
         // The five Syntax highlight colours as the Design oracle paints them,
-        // measured off the app rather than off a still: `ref/ia/mac-native/
+        // measured off the app rather than off a still: `dev/ref/ia/mac-native/
         // CAPTURE-ORIGINAL-MBP.md` § The ten Category colours, the normalised
         // column, which is the reference profile every § 4.2 row is in. Each
         // is the repeated solid glyph colour off the all-five frame, confirmed
@@ -552,10 +552,10 @@ impl Colours {
         syntax_adjective: Colour::from_hex("#9d6722"),
         syntax_adverb: Colour::from_hex("#a6559f"),
         syntax_conjunction: Colour::from_hex("#51812f"),
-        // `ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, the
+        // `dev/ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, the
         // *Ink on the paper* row, light column.
         spell: Colour::from_hex("#ed766b"),
-        // `ref/ia/mac-native/NOTES.md` § State 28 § The pane is two columns
+        // `dev/ref/ia/mac-native/NOTES.md` § State 28 § The pane is two columns
         // and three grounds, light column, and its *Date ink* row.
         organizer_bg: Colour::from_hex("#eaebeb"),
         file_list_bg: Colour::from_hex("#fcfcfc"),
@@ -587,7 +587,7 @@ impl Colours {
         rule: Colour::rgba(255, 255, 255, 0.10),
         shadow: Colour::rgba(0, 0, 0, 0.55),
         // All five measured on the dark ground the way the light five were,
-        // off the same run: `ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § The
+        // off the same run: `dev/ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § The
         // ten Category colours, normalised column. The dark noun and the dark
         // conjunction had never been read at all before it — no still shows
         // them — and the derivation that stood in for them is gone with the
@@ -597,10 +597,10 @@ impl Colours {
         syntax_adjective: Colour::from_hex("#ba9659"),
         syntax_adverb: Colour::from_hex("#b490b0"),
         syntax_conjunction: Colour::from_hex("#89a474"),
-        // `ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, the
+        // `dev/ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, the
         // *Ink on the paper* row, dark column.
         spell: Colour::from_hex("#cf807e"),
-        // `ref/ia/mac-native/NOTES.md` § State 28 § The pane is two columns
+        // `dev/ref/ia/mac-native/NOTES.md` § State 28 § The pane is two columns
         // and three grounds, dark column, and its *Date ink* row.
         organizer_bg: Colour::from_hex("#1a1c1b"),
         file_list_bg: Colour::from_hex("#151515"),
@@ -1083,7 +1083,7 @@ mod tests {
     /// app will emit, which is that `rgba()` with its opacity spelled in full.
     ///
     /// Ten of the rows are `docs/design.md`'s, off the Design oracle, and the
-    /// rest are `legacy/app/css/theme.css`'s; which is which is the module's
+    /// rest are `dev/legacy/app/css/theme.css`'s; which is which is the module's
     /// header. Every row is written out here rather than derived, because a
     /// table that computes what it asserts asserts nothing — including the two
     /// marker rows, which are the ink's value said a second time rather than a
@@ -1244,7 +1244,7 @@ mod tests {
 
     /// The two Spell reds are two measured values and not one with an alpha.
     ///
-    /// `ref/ia/mac-native/NOTES.md` § State 26 § The mark itself: *no coverage
+    /// `dev/ref/ia/mac-native/NOTES.md` § State 26 § The mark itself: *no coverage
     /// flattens `#ed766b` onto the dark paper to give `#cf807e`*, which is how
     /// the capture told a dynamic system colour from a single ink laid over
     /// two papers. Every coverage is tried here, a hundredth at a time, and the

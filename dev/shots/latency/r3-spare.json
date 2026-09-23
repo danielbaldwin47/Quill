@@ -1,0 +1,55 @@
+{
+ "doc": "dev/shots/latency/doc10k.md",
+ "keys": 150,
+ "pace_ms": 90,
+ "rows": [
+  {
+   "added_ms": 0,
+   "n": 150,
+   "commit_mean": 5.48,
+   "commit_p50": 4.24,
+   "commit_max": 12.72,
+   "present_mean": 6.19
+  },
+  {
+   "added_ms": 0.5,
+   "n": 150,
+   "commit_mean": 5.14,
+   "commit_p50": 3.51,
+   "commit_max": 11.94,
+   "present_mean": 5.82
+  },
+  {
+   "added_ms": 1,
+   "n": 150,
+   "commit_mean": 5.11,
+   "commit_p50": 3.27,
+   "commit_max": 13.29,
+   "present_mean": 5.72
+  },
+  {
+   "added_ms": 2,
+   "n": 150,
+   "commit_mean": 5.34,
+   "commit_p50": 4.19,
+   "commit_max": 10.56,
+   "present_mean": 6.11
+  },
+  {
+   "added_ms": 4,
+   "n": 150,
+   "commit_mean": 6.26,
+   "commit_p50": 6.11,
+   "commit_max": 8.11,
+   "present_mean": 6.9
+  },
+  {
+   "added_ms": 8,
+   "n": 150,
+   "commit_mean": 10.15,
+   "commit_p50": 10.1,
+   "commit_max": 11.05,
+   "present_mean": 10.74
+  }
+ ]
+}

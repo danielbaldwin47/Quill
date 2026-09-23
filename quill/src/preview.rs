@@ -5,7 +5,7 @@
 //! Pango layouts, paints the Template's paper under them and its ink through
 //! them, and centres the measure in whatever the pane has been dragged to. The
 //! two panes carry different papers, which is the Design oracle's whole point
-//! about the split (`ref/ia/mac-native/NOTES.md` § State 16): the Editor's
+//! about the split (`dev/ref/ia/mac-native/NOTES.md` § State 16): the Editor's
 //! ground is where the source is typed, and the page is a distinctly darker —
 //! or lighter — sheet beside it.
 //!

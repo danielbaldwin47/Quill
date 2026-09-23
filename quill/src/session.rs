@@ -919,7 +919,7 @@ impl Session {
         self.theme.get()
     }
 
-    /// Moves to the other ground, the way `legacy/app/js/theme.js` does: the
+    /// Moves to the other ground, the way `dev/legacy/app/js/theme.js` does: the
     /// setting becomes the ground that is not on screen now.
     ///
     /// From `auto` that is the opposite of whatever the desktop was answering,
@@ -1322,8 +1322,8 @@ impl Session {
     /// ([`crate::files::location_for`]).
     ///
     /// A launch of the harness's takes in nothing: it leaves no state behind
-    /// and points the writer's Library at nothing, so `ref/sample.md` never
-    /// makes `ref/` a Location of theirs.
+    /// and points the writer's Library at nothing, so `dev/ref/sample.md` never
+    /// makes `dev/ref/` a Location of theirs.
     pub fn opened_at(&self, path: &Path) {
         self.wrote_at(path);
         if self.harness {
@@ -2466,7 +2466,7 @@ mod tests {
     /// setting would be back at `auto`, or stuck. What a writer means by the
     /// key is "not this ground", so the answer is the opposite of the ground
     /// they opened on, however many times they press it an odd number of
-    /// times. `legacy/app/js/theme.js`, `set(resolve() === 'dark' ? …)`.
+    /// times. `dev/legacy/app/js/theme.js`, `set(resolve() === 'dark' ? …)`.
     #[test]
     fn three_presses_from_auto_leave_the_setting_at_the_other_ground() {
         for opened in [Scheme::Light, Scheme::Dark] {

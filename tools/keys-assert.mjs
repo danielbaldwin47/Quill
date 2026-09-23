@@ -277,7 +277,7 @@ export function readSelectionRows(png) {
 const BAR_HEIGHT = 26;
 
 // The scale a shot with nothing to say about it was taken at: `defaults.scale` in
-// `shots/oracle/states.json`, which every judged shot and both fixture crops use. `keys.mjs`
+// `dev/shots/oracle/states.json`, which every judged shot and both fixture crops use. `keys.mjs`
 // passes the running state's own scale rather than leaning on this.
 const SCALE = 2;
 
@@ -295,7 +295,7 @@ export const PAPER_MARGIN = 6;
 /// that the chrome draws it and so it moves with the chrome. It does not: the rule is a *scroll*
 /// separator, drawn only while the Document overflows its view. The oracle's `bars` state has it
 /// and the oracle's `selection` state, over the shorter passage, has none — and neither does ours,
-/// in any state that does not scroll. `tools/gate keys chrome` types on `ref/short.md`, which never
+/// in any state that does not scroll. `tools/gate keys chrome` types on `dev/ref/short.md`, which never
 /// scrolls, so both of #391's rules refused before asserting anything and its selftest could not
 /// catch it: every fixture it pinned was cut from a scrolling shot.
 ///
@@ -818,7 +818,7 @@ export function judgeSwitchFlipped(before, after, { scale = SCALE } = {}) {
 /// `(Scheme::Light, Role::Spell, "#ed766b")` and `(Scheme::Dark, Role::Spell, "#cf807e")`.
 ///
 /// The Design oracle's own two values, measured off the mark macOS draws under a misspelling
-/// (`ref/ia/mac-native/NOTES.md` § State 26 § The mark itself); the day the theme's two lines move,
+/// (`dev/ref/ia/mac-native/NOTES.md` § State 26 § The mark itself); the day the theme's two lines move,
 /// these two move with them.
 export const SPELL = { r: 0xed, g: 0x76, b: 0x6b };
 export const SPELL_DARK = { r: 0xcf, g: 0x80, b: 0x7e };
@@ -982,7 +982,7 @@ export const BETWEEN_BURSTS = {
 export const SETTLES = ['caret', 'still'];
 
 /// Where the scripts are, said once so the command and its error messages agree.
-export const STATES = 'shots/oracle/states.json';
+export const STATES = 'dev/shots/oracle/states.json';
 
 /// The bursts and assertions listed for a Piece, with the judged defaults filled in around the
 /// state it opens.
@@ -996,7 +996,7 @@ export function resolveScript(states, piece) {
 /// Every script a Piece carries, in the order they run, each resolved as [`resolveScript`] says.
 ///
 /// A Piece's entry is one script or a list of them. A list is for two conditions that want two
-/// launches: `chrome`'s stats-bar script opens on `ref/short.md` with the bars on, and its Palette
+/// launches: `chrome`'s stats-bar script opens on `dev/ref/short.md` with the bars on, and its Palette
 /// script on an empty page with the Palette up, and a `between` rule is asked of every pair in its
 /// own script, so the two could not share one run without comparing a stats bar with a Palette.
 export function resolveScripts(states, piece) {

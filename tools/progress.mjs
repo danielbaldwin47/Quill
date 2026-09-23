@@ -1,4 +1,4 @@
-// Build progress/index.html from progress/state.json + progress/rounds/*.json (+ progress/latency.json)
+// Build dev/progress/index.html from dev/progress/state.json + dev/progress/rounds/*.json (+ dev/progress/latency.json)
 // Round file: { piece, round, winner: 'ours'|'theirs'|'tie', gap, verdict, oursShot, theirsShot, builderNote, at, latency? }
 import fs from 'node:fs'; import path from 'node:path'; import { chromium } from 'playwright-core'; import { thumb } from './thumb.mjs';
 // Who a round was judged against, read from the round rather than assumed, so a page showing both
@@ -6,9 +6,9 @@ import fs from 'node:fs'; import path from 'node:path'; import { chromium } from
 // judge writes them through — the page and the judge cannot disagree about it, and the page does
 // not have to import the judging command to ask.
 import { opponentName as opponentOf } from './rounds.mjs';
-const state = JSON.parse(fs.readFileSync('progress/state.json', 'utf8'));
-const rounds = fs.readdirSync('progress/rounds').filter(f => f.endsWith('.json')).map(f => JSON.parse(fs.readFileSync('progress/rounds/' + f, 'utf8'))).sort((a, b) => (a.piece.localeCompare(b.piece)) || a.round - b.round);
-const latency = fs.existsSync('progress/latency.json') ? JSON.parse(fs.readFileSync('progress/latency.json', 'utf8')) : null;
+const state = JSON.parse(fs.readFileSync('dev/progress/state.json', 'utf8'));
+const rounds = fs.readdirSync('dev/progress/rounds').filter(f => f.endsWith('.json')).map(f => JSON.parse(fs.readFileSync('dev/progress/rounds/' + f, 'utf8'))).sort((a, b) => (a.piece.localeCompare(b.piece)) || a.round - b.round);
+const latency = fs.existsSync('dev/progress/latency.json') ? JSON.parse(fs.readFileSync('dev/progress/latency.json', 'utf8')) : null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmtT = iso => { try { return new Date(iso).toLocaleString('en-GB', { timeZone: 'Europe/Stockholm', hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }); } catch { return iso; } };
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true });
@@ -135,5 +135,5 @@ figure.picked figcaption{color:var(--accent)}
   <section class="log"><h2>Log</h2><ol>${[...state.log, ...rounds.map(r => ({ at: r.at, msg: `${r.piece} · round ${r.round}: critic picked ${r.winner === 'ours' ? 'OURS' : r.winner === 'theirs' ? opponentOf(r) : 'neither'} — ${r.gap}` }))].sort((a, b) => a.at.localeCompare(b.at)).reverse().map(l => `<li><time>${fmtT(l.at)}</time><span>${esc(l.msg)}</span></li>`).join('')}</ol></section>
   <p class="foot">Updated ${fmtT(now)} · Screenshots at 1440×900@2x unless noted · iA Writer reference images from ia.net</p>
 </div>`;
-fs.writeFileSync('progress/index.html', html);
+fs.writeFileSync('dev/progress/index.html', html);
 console.log(`progress: ${wonCount}/${pieces.length} won, ${totalRounds} rounds, ${(html.length / 1024).toFixed(0)}KB`);

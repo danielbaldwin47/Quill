@@ -5,13 +5,13 @@ bars are gone, so what stands on the boundary is the free caret alone. Everythin
 the bar goes, what it is painted over, and how the Windows app was measured stands.*
 
 *Sharpened, not disturbed, by iA Writer for Mac running —
-[`ref/ia/mac-native/VERDICTS.md`](../../ref/ia/mac-native/VERDICTS.md) § ADR 0013. The 6 px bar is
+[`dev/ref/ia/mac-native/VERDICTS.md`](../../dev/ref/ia/mac-native/VERDICTS.md) § ADR 0013. The 6 px bar is
 **centred** on the advance boundary, 3 px each side, and the offset from the boundary measures 0.000
 em; the clear paper at a hard line end (7 px), the one-cell step between consecutive offsets and the
 bar that never overlaps ink are all confirmed. One row narrows: 0013.7's "iA has only one mark,
 which a selection moves to whichever end is active" holds for the Windows build its table measured
 and not for the Mac app, which removes the caret for as long as the selection stands. And one line
-is overtaken: § Consequences' "`ref/ia/REFERENCE.md` § 4.1 still says 'flush after the last glyph'"
+is overtaken: § Consequences' "`dev/ref/ia/REFERENCE.md` § 4.1 still says 'flush after the last glyph'"
 — correcting it was its own change, and that change is
 [#157](https://github.com/danielbaldwin47/Quill/issues/157), so § 4.1 now carries the 7 px of clear
 paper and the capture it is measured from.*
@@ -28,17 +28,17 @@ column is the decision. "Offset from it by nothing" below is what stood before t
 column's centre rather than its left edge; everything else here stands. `caret/caret` is judged
 against a `mac-native` crop from here on; `caret/unfocused` still shows a free caret and is still
 judged against the Parity oracle, whose column this change overrules, and it lost on that column in
-`progress/rounds/caret-r8.json`.*
+`dev/progress/rounds/caret-r8.json`.*
 
 *Ranked on 2026-09-09 by the owner: the table below measured **iA Writer for Windows 2.1.9644**
 under Wine, the build [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md) ranks below
 iA Writer for Mac running natively. Nothing here moves. Every claim
-[`VERDICTS.md`](../../ref/ia/mac-native/VERDICTS.md) § ADR 0013 lists, 0013.1 … 0013.8, was
+[`VERDICTS.md`](../../dev/ref/ia/mac-native/VERDICTS.md) § ADR 0013 lists, 0013.1 … 0013.8, was
 re-measured on the Mac app under #154: six stand confirmed, 0013.6's paint order is equally
 unreadable there — the bar meets no ink on either build — and 0013.7 is contradicted, the one
 divergence, resolved in the Mac app's favour by
 [ADR 0014](0014-a-selection-is-a-fill-and-nothing-else.md) before the captures found it. The Wine
-rig under `shots/caret/ia/wine/` keeps its method and its vocabulary; its verdicts are
+rig under `dev/shots/caret/ia/wine/` keeps its method and its vocabulary; its verdicts are
 `VERDICTS.md`'s.*
 
 The bar — the free caret and both of the selection's end bars — stands on the advance boundary
@@ -47,7 +47,7 @@ free caret at an offset and the selection's opening bar at that same offset are 
 column, so opening a selection under the caret leaves the mark where the writer's eye already was.
 This supersedes `caret::NUDGE` (0.07 em, deleted here) and the opening bar's
 `setEdge(edgeA, firstEdge, -M.w)` inherited from the Parity oracle, and it replaces the reading of
-`ref/ia/shots/msstore-win-04-dark-style-check-selection.png` that
+`dev/ref/ia/shots/msstore-win-04-dark-style-check-selection.png` that
 [ADR 0012](0012-editor-draws-its-own-selection.md) § Considered options rests one paragraph on.
 Decided from [#147](https://github.com/danielbaldwin47/Quill/issues/147) and the owner's ask that
 the caret be iA Writer's.
@@ -55,13 +55,13 @@ the caret be iA Writer's.
 ## What changed the answer
 
 Every earlier measurement of iA's caret was taken from the eight Microsoft Store stills in
-`ref/ia/shots/`. In all eight the caret sits at the end of the text, so the one question #147 asks —
+`dev/ref/ia/shots/`. In all eight the caret sits at the end of the text, so the one question #147 asks —
 where the bar goes when a glyph follows it — was never in the evidence, and two readings were made
 of the stills that the stills could not support:
 
 - **`NUDGE = 0.07` em.** Its doc comment recorded "0.060–0.073 em of iA's own captures". At the end
   of a run of text the clear paper behind the bar is the last glyph's **right side bearing**; read
-  as a caret offset it becomes a nudge that does not exist. `ref/ia/REFERENCE.md` § 4.1 read the
+  as a caret offset it becomes a nudge that does not exist. `dev/ref/ia/REFERENCE.md` § 4.1 read the
   same pixels the other way — "sits flush after the last glyph" — and is wrong in the other
   direction. One gap, two contradictory constants, neither of them the caret's.
 - **"iA insets its selection bars."** `msstore-win-04` is a **style-check** capture, as its own file
@@ -110,7 +110,7 @@ em, a glyph's left side bearing at 20 px is less, and the letter is then rasteri
 the bar so the two become one mark. On the boundary the overlap is small — three rows of the `t`'s
 crossbar on the judged passage — but it is the same failure in miniature, and it is the mechanism
 behind #147's "sits on the leading glyph": ours measured `solid 0/6, cut 24` where the oracle's
-measured `solid 6/6, cut 0`. The oracle paints over (`legacy/app/css/caret.css` puts `#caret-layer`
+measured `solid 6/6, cut 0`. The oracle paints over (`dev/legacy/app/css/caret.css` puts `#caret-layer`
 above `#mirror`) and this now does too. iA's own order could not be settled: in no state the app can
 be driven to does its bar meet ink, because the boundary plus the side bearing keeps them apart.
 
@@ -126,7 +126,7 @@ supply, and it is recorded here as the reason a lost round on this Piece is not 
 **The layer above the text is no longer free.** ADR 0012 held it for a future Annotator's marks. The
 bars and the caret are drawn there now, so those marks will have to sort against them.
 
-**`ref/ia/REFERENCE.md` § 4.1 still says "flush after the last glyph".** It is measured wrong in the
+**`dev/ref/ia/REFERENCE.md` § 4.1 still says "flush after the last glyph".** It is measured wrong in the
 other direction and is left alone here; correcting it is its own change against its own evidence.
 
 **The fill is still under the ink.** Only the bars moved. The ink of a held word is the ink of any

@@ -51,7 +51,7 @@ export function pointerLeft(said) {
   return /^pointer left the window at \d+ us$/m.test(said || '');
 }
 
-// ---------- statistics, as `legacy/tools/latency.mjs` computes them ----------
+// ---------- statistics, as `dev/legacy/tools/latency.mjs` computes them ----------
 //
 // Deliberately the same shapes as the legacy bench's, down to the rounding and the bootstrap's
 // seed, so that a native number and an oracle number can be put side by side without anyone having
@@ -185,7 +185,7 @@ export function handlerMs(pair) {
   return (pair.seen.present_us - pair.seen.handler_us) / 1e3;
 }
 
-/// Whether every key can be accounted for, in the words `legacy/tools/latency.mjs` uses.
+/// Whether every key can be accounted for, in the words `dev/legacy/tools/latency.mjs` uses.
 ///
 /// The invariant the Gate asks for is keys sent = keys seen = keys with a presentation time. A run
 /// that misses it has not measured slowly, it has measured something else, so the bench refuses

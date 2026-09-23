@@ -171,7 +171,7 @@ impl Lists {
 /// `past history` is a cliché in its own right and `[past] history` a
 /// redundancy, the same twelve characters either way, and iA strikes all
 /// twelve rather than the redundancy's four (#354,
-/// `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). File order is the
+/// `dev/ref/ia/mac-native/VERDICTS.md` § The Style Check mark). File order is the
 /// last tiebreak and decides nothing a reader can see: it is there so that the
 /// same prose strikes the same way twice.
 ///

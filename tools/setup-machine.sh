@@ -66,10 +66,10 @@ install_state() {
   # gtk4 enchant  - the app's runtime deps (PKGBUILD depends)
   # hunspell-en_us- spell checking (PKGBUILD optdepends)
   # base-devel    - makepkg, for the Arch-package Hand tests
-  # nodejs npm    - the Gate's browser tools and legacy/
+  # nodejs npm    - the Gate's browser tools and dev/legacy/
   # chromium      - tools/*.mjs launch it by absolute path (/usr/bin/chromium)
   # imagemagick   - shot cropping/judging helpers
-  # python-fonttools - tools/fontbuild.py (only to rebuild fonts/ from ref/ia)
+  # python-fonttools - tools/fontbuild.py (only to rebuild fonts/ from dev/ref/ia)
   # wine          - drives iA Writer for Mac-parity questions (memory: ia-writer-is-drivable)
   # grim slurp    - screenshots (Omarchy ships these; --needed makes it a no-op)
   # mise-bin      - version manager; the old machine ran node, gh and claude from it

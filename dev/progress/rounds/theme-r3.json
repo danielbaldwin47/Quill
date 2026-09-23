@@ -1,0 +1,81 @@
+{
+  "piece": "theme",
+  "round": 3,
+  "winner": "theirs",
+  "margin": "clear",
+  "gap": "Marker grey is #808080 vs B's #636363 — 4.41:1 against the shared #1A1A1A paper vs 2.90:1, L*≈53.6 vs 41.8, i.e. A's markers sit at 60% of the way from paper to ink where B's sit at 44%. Measured on the same glyphs: '#', '##', and both '**' pairs around 'bottle' are one flat 50%-grey in A, loud enough to read as content next to the #CCCCCC comma beside them.",
+  "gapTheirs": "B's markers land at 2.90:1 against paper — under the 3:1 floor for non-text marks — so the thinnest ones (the '*' pairs around the italic run, the '-' list bullets) go soft on a dimmed or glossy panel; A's 4.41:1 never disappears. B also has no brighter tier: one grey (#636363) serves #, ##, **, * and - alike, so a heading's scaffold and an emphasis mark carry identical weight.",
+  "verdict": "Paper and ink are byte-identical here — #1A1A1A ground, #CCCCCC ink, 10.84:1 in both — so this comes down to the one grey between them, and A gets it wrong. At #808080 A's hashes and asterisks are 60% of the ink's perceptual weight; you look at '**bottle**' and read four stars before you read the word, which is the exact failure mode markdown-in-place is supposed to prevent. B's #636363 recedes into scaffolding without vanishing, which is the whole job. Neither has actually designed a dark mode though: every grey is R=G=B, the paper has no cast, the ink is left at a halating #CCCCCC, and headings share the body's colour — this is an inversion with one variable tuned, and B tuned it better.",
+  "oursShot": "dev/shots/theme/r3-dark-ours.png",
+  "theirsShot": "dev/shots/oracle/theme/dark.png",
+  "refSource": "dev/shots/oracle/theme/ — the Parity oracle frozen by tools/gate oracle theme from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "",
+  "secondary": [
+    "Both papers exactly #1A1A1A and both inks exactly #CCCCCC — no difference to judge in ground or ink",
+    "#CCCCCC on #1A1A1A is 10.84:1: hot for a night session; neither drops the ink to reduce halation on the monospace stems",
+    "Every grey in both is perfectly neutral (R=G=B) — no warm or cool paper cast in either, the tell of an inverted rather than designed palette",
+    "Neither separates heading ink from body ink (both #CCCCCC); hierarchy rides on weight alone",
+    "Carets near-identical: 6px wide, ~74px (A) vs ~76px (B) tall, hard-edged, no AA. A is literally CSS `deepskyblue` #00BFFF; B is #00B5FF, a tuned value",
+    "One marker grey per app serves #, ##, **, * and - — no tier for block-level vs inline markers in either",
+    "No dimmed/focus state visible in either screenshot, so the 'dimmed grey' half of this piece is unbuilt in both",
+    "Line pitch ~74px (A) vs ~76px (B) at an identical 32px text band — not a palette difference, noted only to rule it out",
+    "Neither screenshot shows the light palette; this verdict covers the dark ground only"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "aab1a22",
+    "binary": "a3ec35c252ce4592",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "dev/shots/theme/r3-light-ours.png",
+      "theirs": "dev/shots/oracle/theme/light.png",
+      "blind": "dev/shots/blind/theme/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Marker grey #7A7A7A sits at 4.0:1 on paper and only ~4x below the ink — in `**bottle**` the two asterisk pairs read as competing punctuation rather than scaffolding, and the `-` bullets and `#` push forward more than B's do; A's line pitch is also 74px vs B's 76px (≈1.72 vs 1.77 at ~21px type), so the page is fractionally more crowded.",
+      "gapTheirs": "Marker grey #9E9E9E is 2.54:1 against #F9F9F9 paper — below the 3:1 floor for any non-text element. Every structural signal in the file (`#`, `##`, `*`, `**`) drops to a smear: you cannot count `##` against `###` at a glance, and the bookends around bold vanish so `**bottle**` reads as ink that got heavier for no stated reason.",
+      "verdict": "These are the same page twice: 2 levels of paper apart, 3 levels of ink apart, the same 3px full-height caret. The one thing that separates them is the grey in between, and B chose a grey that quits — markers at 2.54:1 are not restraint, they are a token nudged toward the paper until it stopped doing its job, and in a plain-text editor the markers are the only structure you get. A's ramp is actually stepped — 4.0:1 paper-to-grey, 4.1:1 grey-to-ink, evenly spaced by contrast rather than by eyeballing — so the syntax recedes without disappearing. Neither of you showed me a dark mode, which is half the brief, so this is a win on the only ground either of you put on screen.",
+      "secondary": [
+        "Neither image shows the dark palette — 'designed vs inverted' is untestable here; both are judged on the light ground alone",
+        "Both papers are dead-neutral (r=g=b, no warmth) and both are off-white rather than #FFF — no differentiation",
+        "Body ink contrast is a wash: A 16.4:1, B 16.2:1",
+        "Caret is effectively identical: A #00BFFF 6x74 device px, B #00B5FF 6x76 — 3 CSS px, full line-height, same blue",
+        "Each app uses exactly one dim grey token for all markers (h1/h2/em/strong/bullet) — no second tier distinguishing structural markers from inline ones, in either",
+        "A's ramp is geometric (4.0 / 4.1 between tiers); B's is lopsided (2.54 paper-to-grey, 6.4 grey-to-ink) — a marker pushed toward the background instead of placed between the two",
+        "Type size and font render identically (cap height 30 device px in both, char advance 26.0 vs 25.8 device px)"
+      ]
+    },
+    {
+      "name": "dark",
+      "ours": "dev/shots/theme/r3-dark-ours.png",
+      "theirs": "dev/shots/oracle/theme/dark.png",
+      "blind": "dev/shots/blind/theme/dark",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Marker grey is #808080 vs B's #636363 — 4.41:1 against the shared #1A1A1A paper vs 2.90:1, L*≈53.6 vs 41.8, i.e. A's markers sit at 60% of the way from paper to ink where B's sit at 44%. Measured on the same glyphs: '#', '##', and both '**' pairs around 'bottle' are one flat 50%-grey in A, loud enough to read as content next to the #CCCCCC comma beside them.",
+      "gapTheirs": "B's markers land at 2.90:1 against paper — under the 3:1 floor for non-text marks — so the thinnest ones (the '*' pairs around the italic run, the '-' list bullets) go soft on a dimmed or glossy panel; A's 4.41:1 never disappears. B also has no brighter tier: one grey (#636363) serves #, ##, **, * and - alike, so a heading's scaffold and an emphasis mark carry identical weight.",
+      "verdict": "Paper and ink are byte-identical here — #1A1A1A ground, #CCCCCC ink, 10.84:1 in both — so this comes down to the one grey between them, and A gets it wrong. At #808080 A's hashes and asterisks are 60% of the ink's perceptual weight; you look at '**bottle**' and read four stars before you read the word, which is the exact failure mode markdown-in-place is supposed to prevent. B's #636363 recedes into scaffolding without vanishing, which is the whole job. Neither has actually designed a dark mode though: every grey is R=G=B, the paper has no cast, the ink is left at a halating #CCCCCC, and headings share the body's colour — this is an inversion with one variable tuned, and B tuned it better.",
+      "secondary": [
+        "Both papers exactly #1A1A1A and both inks exactly #CCCCCC — no difference to judge in ground or ink",
+        "#CCCCCC on #1A1A1A is 10.84:1: hot for a night session; neither drops the ink to reduce halation on the monospace stems",
+        "Every grey in both is perfectly neutral (R=G=B) — no warm or cool paper cast in either, the tell of an inverted rather than designed palette",
+        "Neither separates heading ink from body ink (both #CCCCCC); hierarchy rides on weight alone",
+        "Carets near-identical: 6px wide, ~74px (A) vs ~76px (B) tall, hard-edged, no AA. A is literally CSS `deepskyblue` #00BFFF; B is #00B5FF, a tuned value",
+        "One marker grey per app serves #, ##, **, * and - — no tier for block-level vs inline markers in either",
+        "No dimmed/focus state visible in either screenshot, so the 'dimmed grey' half of this piece is unbuilt in both",
+        "Line pitch ~74px (A) vs ~76px (B) at an identical 32px text band — not a palette difference, noted only to rule it out",
+        "Neither screenshot shows the light palette; this verdict covers the dark ground only"
+      ]
+    }
+  ],
+  "at": "2026-08-31T16:18:46.478Z"
+}

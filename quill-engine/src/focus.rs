@@ -14,7 +14,7 @@
 //! back byte ranges; the tickets after it paint them — the flattening takes a
 //! tier (#126), the Editor retags (#113), the change cross-fades (#114).
 //!
-//! The rules are the Parity oracle's, `legacy/app/js/focus.js` lines 20-38 and
+//! The rules are the Parity oracle's, `dev/legacy/app/js/focus.js` lines 20-38 and
 //! 110-165, ported case for case: [`sentences`] is its `TERM` and `isRealBreak`,
 //! and [`tiers`] is its `update`. Two things read differently here, both because
 //! the native side has a real block index (`docs/architecture.md` § Text model)
@@ -629,7 +629,7 @@ mod tests {
 
     /// The shared test passage, which the judged states are shot against.
     fn passage() -> Document {
-        Document::open(Path::new("../ref/sample.md"))
+        Document::open(Path::new("../dev/ref/sample.md"))
             .expect("the shared test passage is in the repo")
     }
 
@@ -1128,7 +1128,7 @@ mod tests {
     #[test]
     fn a_keystroke_at_the_judged_caret_moves_no_line_of_the_passage() {
         let mut doc = passage();
-        // `shots/oracle/states.json`, `focus/sentence`: `"caret": 140`.
+        // `dev/shots/oracle/states.json`, `focus/sentence`: `"caret": 140`.
         assert_eq!(
             moved_by_typing(&mut doc, 140, "x", Focus::On(FocusScope::Sentence)),
             Vec::<Range<usize>>::new(),

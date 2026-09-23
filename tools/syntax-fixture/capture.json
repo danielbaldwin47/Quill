@@ -5,7 +5,7 @@
     {
       "file": "all-light-ours.png",
       "flags": {
-        "text": "ref/ia/mac-native/passage-syntax.md",
+        "text": "dev/ref/ia/mac-native/passage-syntax.md",
         "w": 1440,
         "h": 900,
         "scale": 2,
@@ -36,7 +36,7 @@
     {
       "file": "all-light-ours-lit.png",
       "flags": {
-        "text": "ref/ia/mac-native/passage-syntax.md",
+        "text": "dev/ref/ia/mac-native/passage-syntax.md",
         "w": 1440,
         "h": 900,
         "scale": 2,
@@ -67,7 +67,7 @@
     {
       "file": "all-dark-ours.png",
       "flags": {
-        "text": "ref/ia/mac-native/passage-syntax.md",
+        "text": "dev/ref/ia/mac-native/passage-syntax.md",
         "w": 1440,
         "h": 900,
         "scale": 2,
@@ -98,7 +98,7 @@
     {
       "file": "all-dark-ours-lit.png",
       "flags": {
-        "text": "ref/ia/mac-native/passage-syntax.md",
+        "text": "dev/ref/ia/mac-native/passage-syntax.md",
         "w": 1440,
         "h": 900,
         "scale": 2,
@@ -129,7 +129,7 @@
     {
       "file": "adjectives-adverbs-ours.png",
       "flags": {
-        "text": "ref/sample.md",
+        "text": "dev/ref/sample.md",
         "w": 1440,
         "h": 900,
         "scale": 2,
@@ -160,7 +160,7 @@
     {
       "file": "adjectives-adverbs-ours-lit.png",
       "flags": {
-        "text": "ref/sample.md",
+        "text": "dev/ref/sample.md",
         "w": 1440,
         "h": 900,
         "scale": 2,
@@ -191,7 +191,7 @@
     {
       "file": "focus-sentence-ours.png",
       "flags": {
-        "text": "ref/ia/mac-native/passage-syntax.md",
+        "text": "dev/ref/ia/mac-native/passage-syntax.md",
         "w": 1440,
         "h": 900,
         "scale": 2,
@@ -222,7 +222,7 @@
     {
       "file": "focus-sentence-ours-lit.png",
       "flags": {
-        "text": "ref/ia/mac-native/passage-syntax.md",
+        "text": "dev/ref/ia/mac-native/passage-syntax.md",
         "w": 1440,
         "h": 900,
         "scale": 2,
@@ -253,7 +253,7 @@
     {
       "file": "live-ours.png",
       "flags": {
-        "text": "ref/sample.md",
+        "text": "dev/ref/sample.md",
         "w": 1440,
         "h": 900,
         "scale": 2,
@@ -284,7 +284,7 @@
     {
       "file": "live-ours-lit.png",
       "flags": {
-        "text": "ref/sample.md",
+        "text": "dev/ref/sample.md",
         "w": 1440,
         "h": 900,
         "scale": 2,

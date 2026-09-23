@@ -28,7 +28,7 @@
 // with the trail on stderr, for every reason the judge would refuse, and for a state the Piece has
 // not got; in a run of several, a refused Piece is refused by its own line after the others have
 // printed, and the run ends in `gate shoot: refused (...)`, exit 3. Nothing here is evidence: the
-// shots go under target/gate/shoot/<piece>/ rather than shots/, no pair is made, and no round is
+// shots go under target/gate/shoot/<piece>/ rather than dev/shots/, no pair is made, and no round is
 // written.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,7 +40,7 @@ import { Refused, buildOurs, carriedFrom, checkStates, openLog, opensAt, say, sh
 import { readStates, resolveStates } from './oracle.mjs';
 import { rounds } from './rounds.mjs';
 
-// Where a looked-at shot goes: under the build directory, never under shots/, which is a round's.
+// Where a looked-at shot goes: under the build directory, never under dev/shots/, which is a round's.
 export const OUT = 'target/gate/shoot';
 
 // The files one state's shot is made of, named as the judge names a round's so a crop reads as one.
@@ -52,7 +52,7 @@ export function shotPaths(piece, state, cut) {
     shot: `${stem}-ours.png`,
     lit: `${stem}-ours-lit.png`,
     ours: cut ? `${stem}-ours-crop.png` : `${stem}-ours.png`,
-    theirs: cut ? `${stem}-theirs-crop.png` : path.join('shots/oracle', piece, `${state}.png`),
+    theirs: cut ? `${stem}-theirs-crop.png` : path.join('dev/shots/oracle', piece, `${state}.png`),
   };
 }
 
@@ -81,7 +81,7 @@ function usage(where = process.stderr) {
   where.write(`usage: tools/gate shoot <piece> [state ...] | --pieces a,b | --all [--settings <path>]
 
   The Pieces with judged states are the keys of "pieces" in
-  shots/oracle/states.json, and a Piece's states are the keys under it.
+  dev/shots/oracle/states.json, and a Piece's states are the keys under it.
   What the command does: tools/gate --help
 
   --pieces   these Pieces, by name, separated by commas, on one stage
@@ -189,7 +189,7 @@ async function main(argv) {
   const pieces = choice.names ?? [piece];
   openLog(root, several ? 'shoot' : `shoot-${piece}`);
   if (several && names.length) return refuse(null, `states are named for one Piece, and ${names.join(', ')} came with ${choice.flag}`);
-  if (!pieces.length) return refuse(null, 'shots/oracle/states.json names no Piece to shoot');
+  if (!pieces.length) return refuse(null, 'dev/shots/oracle/states.json names no Piece to shoot');
 
   // Every Piece's checks before the build, then one build for all of them, then every Piece's
   // states asked of the binary — all before any window opens, so a refusal costs nobody the

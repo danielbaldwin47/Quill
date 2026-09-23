@@ -1,4 +1,4 @@
-//! The Spell check seam against the fixture dictionary, `ref/spell/`, read through the temporary
+//! The Spell check seam against the fixture dictionary, `dev/ref/spell/`, read through the temporary
 //! copy [`fixture`] makes, so no test reads the machine's dictionaries or writes the checkout.
 
 mod spell_fixture;
@@ -11,7 +11,7 @@ use quill_engine::spell::{self, Enchant, Position, SUGGESTIONS, SpellChecker};
 use spell_fixture::fixture;
 
 /// The passage's seven marked misspellings, as the capture reads them off the Design oracle
-/// (`ref/ia/mac-native/NOTES.md` § State 26 § What is marked).
+/// (`dev/ref/ia/mac-native/NOTES.md` § State 26 § What is marked).
 ///
 /// `DRAFFT` is misspelled and is not here: an all-caps word the dictionary does not hold is left
 /// alone, as `2b` and `Q3` are, and [`quill_engine::spell::words`] drops both kinds before the
@@ -95,8 +95,9 @@ fn the_word_character_rule_takes_letters_and_a_mid_word_apostrophe() {
 #[test]
 fn the_passage_misspellings_fail_and_its_other_words_pass() {
     let checker = en_us();
-    let passage = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../ref/spell.md"))
-        .expect("ref/spell.md is readable");
+    let passage =
+        fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../dev/ref/spell.md"))
+            .expect("dev/ref/spell.md is readable");
     let words: Vec<&str> = passage
         .split(|c: char| !c.is_alphanumeric())
         .filter(|word| !word.is_empty())
@@ -131,8 +132,9 @@ fn the_passage_misspellings_fail_and_its_other_words_pass() {
 #[test]
 fn the_prose_stream_marks_exactly_the_passage_s_seven_misspellings() {
     let checker = en_us();
-    let passage = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../ref/spell.md"))
-        .expect("ref/spell.md is readable");
+    let passage =
+        fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../dev/ref/spell.md"))
+            .expect("dev/ref/spell.md is readable");
     let marked: Vec<&str> = markdown::prose(&passage)
         .iter()
         .flat_map(|prose| {

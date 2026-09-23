@@ -74,7 +74,7 @@ window, same type, same keys, one commit apart.
 The bottom row is the whole difference, and it is the whole defect: `Editor::selection` read GTK's
 display-line moves for whether they had moved, which is not what they answer, so the last row of a
 Document measured no width and drew no fill. Every row above it painted, and the judged `selection`
-state is `--select 153,171` in the middle of `ref/sample.md` — six rounds and eighteen critics saw
+state is `--select 153,171` in the middle of `dev/ref/sample.md` — six rounds and eighteen critics saw
 nothing.
 
 The assertion counts row bands rather than looking at the bottom one, so a walk that starts a row
@@ -90,7 +90,7 @@ three rows are of three different lengths.
 - `fill-newline-held.png` — the fourth burst, added by #168. It types over the standing selection,
   leaving a Document of `aa`, `bbbb` and the empty row a trailing newline opens, and presses
   `Control+a`. The selection then ends past a **newline** rather than past a glyph, which is the
-  one shape no still in `shots/oracle/` shows.
+  one shape no still in `dev/shots/oracle/` shows.
 
 Taken by #168 with `tools/gate keys caret --shots`, on the same window and the same type as the
 pair above, so the three bands stand at the same three heights and only their reach along each row
@@ -115,7 +115,7 @@ it.
 ## The Spell check mark withheld until the space
 
 - `spell-typing.png` — after the spell script's first burst: ` comittee` typed at the end of
-  `ref/spell.md` under `--spell on`, the caret still after the word.
+  `dev/ref/spell.md` under `--spell on`, the caret still after the word.
 - `spell-space.png` — after its second: one space, which releases the word.
 
 Taken by #414 with `tools/gate keys spell --shots` on the build with #409's caret rule, and cut by

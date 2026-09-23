@@ -2,7 +2,7 @@
 
 *The baseline pass is finished on `main` as of 2026-09-10, and the decision stands unchanged.
 [#342](https://github.com/danielbaldwin47/Quill/issues/342) closed the three things the Decision
-below left waiting on a capture: `ref/ia/mac-native/NOTES.md` § State 23 read no first-line indent
+below left waiting on a capture: `dev/ref/ia/mac-native/NOTES.md` § State 23 read no first-line indent
 in any of iA's four Templates, put the Manuscript family on the Editor's own em, and so gave
 Classic's gap and the reading that `base` — not `line_height` — carries the pitch difference
 between the two families. `classic.toml` holds the working; Classic is Quill's own from here.*

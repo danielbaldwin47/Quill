@@ -2,8 +2,8 @@
 //
 //   tools/gate brief caret
 //
-// The two files a judge reads are `progress/state.json` (the Piece's brief) and
-// `shots/oracle/states.json` (its judged states), and both hold long single
+// The two files a judge reads are `dev/progress/state.json` (the Piece's brief) and
+// `dev/shots/oracle/states.json` (its judged states), and both hold long single
 // lines: a brief is one string, so a two-hit `grep` over state.json returned 25k
 // characters (docs/agents/context.md § What the steps cost when skipped). This
 // prints the one Piece's half of each instead — the brief wrapped to 100
@@ -58,14 +58,14 @@ function opponent(piece, name, state) {
     ];
   }
   if (state.assert) return [`opponent: none — asserted off ours' own pixels (${JSON.stringify(state.assert)})`];
-  return [`opponent: the Parity oracle, shots/oracle/${piece}/${name}.png`];
+  return [`opponent: the Parity oracle, dev/shots/oracle/${piece}/${name}.png`];
 }
 
 const piece = process.argv[2];
 if (!piece) refuse('', 'no Piece named');
 
-const progress = JSON.parse(fs.readFileSync(path.join(ROOT, 'progress/state.json'), 'utf8'));
-const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+const progress = JSON.parse(fs.readFileSync(path.join(ROOT, 'dev/progress/state.json'), 'utf8'));
+const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'dev/shots/oracle/states.json'), 'utf8'));
 const entry = progress.pieces.find((p) => p.id === piece);
 const judged = states.pieces[piece];
 if (!entry && !judged) refuse(piece, 'no such Piece');
@@ -78,7 +78,7 @@ if (entry) {
     for (const line of wrap(entry.judge, '  ')) console.log(line);
   }
 } else {
-  console.log(`${piece} — no entry in progress/state.json`);
+  console.log(`${piece} — no entry in dev/progress/state.json`);
 }
 
 const names = Object.keys(judged ?? {});

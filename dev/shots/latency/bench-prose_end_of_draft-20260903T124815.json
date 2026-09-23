@@ -1,0 +1,225 @@
+{
+  "regime": "prose_end_of_draft",
+  "definition": {
+    "mix": "prose",
+    "where": "end",
+    "pace_ms": 90,
+    "focus": "off",
+    "caret": "end",
+    "pause_every_keys": null,
+    "pause_ms": null,
+    "keys_per_session": 300,
+    "sessions": 1,
+    "warmup_keys": 25
+  },
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "verdict": {
+    "mean_ms": 2.48,
+    "worst_ms": 25.06,
+    "p50_ms": 1.92,
+    "p99_ms": 25.06,
+    "cold_ms": 158.18,
+    "clears_mean": true,
+    "clears_worst": false,
+    "clears_cold": true,
+    "scored": true,
+    "pass": false
+  },
+  "accounting": {
+    "keys_planned": 300,
+    "keys_sent": 100,
+    "keys_seen_by_the_app": 81,
+    "keys_aligned": 79,
+    "keys_with_a_presentation_time": 79,
+    "keys_the_app_never_saw": 21,
+    "keys_the_bench_never_sent": 2,
+    "keys_sharing_a_frame": 0,
+    "every_keystroke_accounted_for": false
+  },
+  "uinput_write_to_presented_ms": {
+    "n": 79,
+    "min": 1.34,
+    "p50": 1.92,
+    "p90": 3.22,
+    "p95": 4.75,
+    "p99": 25.06,
+    "max": 25.06,
+    "mean": 2.48,
+    "sd": 2.7
+  },
+  "mean_ci95": {
+    "lo95": 2.06,
+    "hi95": 3.19
+  },
+  "p99_ci95": {
+    "lo95": 4.75,
+    "hi95": 25.06
+  },
+  "first_handler_to_presented_ms": {
+    "n": 79,
+    "min": 0.93,
+    "p50": 1.44,
+    "p90": 2.62,
+    "p95": 3.81,
+    "p99": 24.51,
+    "max": 24.51,
+    "mean": 1.97,
+    "sd": 2.66
+  },
+  "samples_ms": [
+    2.58,
+    1.74,
+    1.99,
+    1.83,
+    2.93,
+    1.66,
+    1.35,
+    1.61,
+    1.58,
+    1.84,
+    2.14,
+    1.34,
+    1.55,
+    1.55,
+    1.35,
+    2.74,
+    1.81,
+    1.57,
+    2.22,
+    2.68,
+    3.93,
+    2.06,
+    2,
+    1.92,
+    1.94,
+    4.19,
+    2.93,
+    1.55,
+    2.07,
+    2.06,
+    3.13,
+    5.08,
+    1.79,
+    2,
+    1.92,
+    4.75,
+    4.13,
+    25.06,
+    2.6,
+    2.88,
+    3.22,
+    2.9,
+    1.7,
+    1.86,
+    1.77,
+    2.76,
+    1.71,
+    1.77,
+    1.7,
+    1.68,
+    1.6,
+    6.38,
+    1.77,
+    1.81,
+    2.04,
+    1.48,
+    1.55,
+    1.64,
+    1.54,
+    1.53,
+    1.52,
+    2.73,
+    1.65,
+    2.2,
+    2.04,
+    1.92,
+    1.88,
+    2.49,
+    1.99,
+    1.79,
+    1.69,
+    1.66,
+    1.64,
+    2.18,
+    2.14,
+    2.06,
+    2.12,
+    2.18,
+    1.9
+  ],
+  "input_injection": {
+    "how": "real keys written to /dev/uinput, tools/uinput-keys.py",
+    "device": "quill-latency-bench (uinput, bus USB)",
+    "aligned_by": "gdk_keycode === evdev code + 8, greedily",
+    "focus_rechecks": 6,
+    "stopped_because_focus_was_lost": true
+  },
+  "cold_start_ms": {
+    "each": [
+      158.178
+    ],
+    "worst": 158.178,
+    "stage_first_client": 319.729
+  },
+  "sessions_mean_ms": [
+    2.48
+  ],
+  "write_gaps_ms": {
+    "n": 99,
+    "min": 90.13,
+    "p50": 90.28,
+    "p90": 90.38,
+    "p95": 90.43,
+    "p99": 95.71,
+    "max": 95.71,
+    "mean": 90.4,
+    "sd": 0.77,
+    "over_a_second": 0
+  },
+  "fingerprint": {
+    "at": "2026-09-03T12:48:15.669Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "1e06671b64e1a4f7",
+      "git_head": "087a32b",
+      "tree_was_dirty": false,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "quill-gate-2275663",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.1.9-arch1-2",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 1.69,
+      "busiest_processes": [
+        "6.3 spotify",
+        "2.1 Hyprland",
+        "2.0 quill <defunct>",
+        "1.8 spotify",
+        "1.6 spotify"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

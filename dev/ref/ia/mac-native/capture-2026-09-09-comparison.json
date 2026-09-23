@@ -1,0 +1,37 @@
+{
+  "status": "proposed; not installed; #328 design decision and #326 Linux re-shoot/Gate remain",
+  "units": "device pixels; [x,y,width,height]",
+  "mac": {
+    "file": "dev/ref/ia/shots/mac-native/mac-native-18-light-page-narrow.png",
+    "crop": [
+      0,
+      128,
+      1920,
+      1400
+    ],
+    "state": {
+      "w": 960,
+      "h": 900,
+      "scale": 2,
+      "theme": "light",
+      "font": "mono",
+      "text_size": "L / step 5",
+      "text": "dev/ref/sample.md",
+      "scroll": 0,
+      "caret": 0
+    }
+  },
+  "quill_reference": {
+    "branch": "spec-310-syntax",
+    "file": "dev/shots/page/r8-narrow-ours.png",
+    "sha256": "31eb76cf27bbc89b31746062e26fa49c52646feef90300d178edd3263a1031e8",
+    "crop": [
+      0,
+      212,
+      1920,
+      1400
+    ],
+    "state": "page/narrow; current defaults use Duo; re-shoot with explicit Mono before adopting a Design opponent"
+  },
+  "alignment": "First heading ink at crop y20 on each; retain x0..1919; do not scale either image."
+}

@@ -162,7 +162,7 @@ runs, one precomputed colour and alpha each, and the tag table holds one tag per
 in the flattening and not over it**: the Design oracle re-inks a struck run to the quiet tier rather
 than ruling a line over the ink it had, so a struck word loses the Category it was carrying — an
 ordering between the two Annotators, Style check last — and takes the Focus dim like any other run
-(#354, `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). Decorations are separate tags
+(#354, `dev/ref/ia/mac-native/VERDICTS.md` § The Style Check mark). Decorations are separate tags
 layered over the runs: one property-free tag for Spell check, which says only that a word is
 misspelled — its mark is a row of round dots no Pango underline can draw, so the Editor paints them
 itself over the glyphs in the `spell` Role (`docs/design.md` row *Spell mark*), and the tag carries
@@ -178,7 +178,7 @@ same flattening as an ink laid over the Markup runs rather than a mark resolved 
 (`quill_engine::annotate::paint_tagged`, #313), which is what keeps a Category off a marker and off
 a link's plumbing. Underline and colour are different properties, so those overlaps are safe.
 
-**Leading.** Line pitch is the ladder's pitch per step (`ref/ia/mac-native/NOTES.md` § 11; 1.711 em
+**Leading.** Line pitch is the ladder's pitch per step (`dev/ref/ia/mac-native/NOTES.md` § 11; 1.711 em
 at the default), in device px at scale 2 and `round(value × scale / 2)` at any other: iA's liquid
 leading as measured on the Design oracle, not a fitted curve (`docs/design.md` § Line pitch). The air
 a row leaves over, `pitch − row`, is split three ways as ADR 0004 requires, and the split is fixed by
@@ -518,8 +518,8 @@ removed package; it is built in full anyway, because a Flatpak's non-English dic
 behind the locale extension and dangle when the subset excludes them, and enchant reports them
 absent exactly as it would here.
 
-The Gate never reads the machine's dictionaries. `ref/spell/` holds a small `en_US` `.aff`/`.dic`
-pair with every correctly spelled word of `ref/spell.md` and of the bench passages, and none of the
+The Gate never reads the machine's dictionaries. `dev/ref/spell/` holds a small `en_US` `.aff`/`.dic`
+pair with every correctly spelled word of `dev/ref/spell.md` and of the bench passages, and none of the
 passage's misspellings; the harness (every `--deterministic` launch, whatever `--spell` says), the
 bench and the engine tests point `ENCHANT_CONFIG_DIR` at a fresh temporary copy of that directory
 per run. enchant searches the config directory's `hunspell/` before the system's, so the fixture
@@ -544,24 +544,24 @@ One commit, once the Cargo workspace is standing beside the JavaScript app. The 
 so the move finds Rust already at the root rather than clearing the ground for it:
 
 - `app/`, `tools/{serve,shoot,crop,latency,smoke}.mjs`, `bin/quill`, `package.json` and the Node
-  lockfile move under `legacy/` unchanged; `legacy/bin/quill` still launches the JavaScript app from
+  lockfile move under `dev/legacy/` unchanged; `dev/legacy/bin/quill` still launches the JavaScript app from
   the checkout. `tools/blind.mjs`, `tools/thumb.mjs`, `tools/progress.mjs`, `tools/uinput-keys.py`
   and `tools/idle-check.py` stay at the root: the Gate uses them for the native app.
 - `Cargo.toml` (workspace), `quill-engine/`, `quill/`, `tools/fontbuild.py` and `fonts/` are at the
   root by then. `tools/gate` is not: it arrives with the Gate tooling
   ([#19](https://github.com/danielbaldwin47/Quill/issues/19)).
-- `legacy/LICENSE` is ISC, the licence the Node manifest always named; the root `LICENSE` stays
+- `dev/legacy/LICENSE` is ISC, the licence the Node manifest always named; the root `LICENSE` stays
   GPL-3.0-or-later, and the two halves of the tree are licensed apart.
 - `PKGBUILD` switches to the native binary in the same commit. The Feature tier hand-tests from the
   installed package, and the legacy app needs no installation to serve as the Parity oracle.
 - `README.md` and `CLAUDE.md` are rewritten for the new layout; `BRIEF.md` and `NOTES.md` move to
-  `legacy/` with the app they describe.
+  `dev/legacy/` with the app they describe.
 
-`legacy/` is the Parity oracle: `shots/oracle/<piece>/<state>.png` is generated from it with
-`legacy/tools/shoot.mjs` and regenerated only when `legacy/` changes. **Retirement** is its own
-ticket, opened when every Piece's latest verdict in `progress/rounds/` is ours and all nine ported
+`dev/legacy/` is the Parity oracle: `dev/shots/oracle/<piece>/<state>.png` is generated from it with
+`dev/legacy/tools/shoot.mjs` and regenerated only when `dev/legacy/` changes. **Retirement** is its own
+ticket, opened when every Piece's latest verdict in `dev/progress/rounds/` is ours and all nine ported
 Pieces' Hand tests have passed; the owner's `hand test: pass` on that ticket is the declaration. That
-ticket deletes `legacy/` and gives every judged state a `mac-native` crop as its opponent
+ticket deletes `dev/legacy/` and gives every judged state a `mac-native` crop as its opponent
 ([ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)); a state that follows a
 `docs/design.md` row takes one as soon as the Gate has the per-state key (#161).
 

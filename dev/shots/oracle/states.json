@@ -1,0 +1,1335 @@
+{
+  "_about": "The judged states of the nine Pieces, decided in issue #24. tools/gate judge <piece> shoots ours and the Parity oracle at every state listed for the Piece and freezes the oracle's shot at dev/shots/oracle/<piece>/<state>.png. Offsets are UTF-8 bytes from the start of the passage (the native --caret and --select form); the tool converts them to dev/legacy/tools/shoot.mjs's character offsets. `step` is a rung of the type ladder in quill-engine/src/typography.rs, and the tool converts it the same way to the em in pixels that shoot.mjs's --size wants. Every key in `defaults` is a flag from docs/architecture.md and is overridden per state — except `opponent`, which is not a flag and says who the state is judged against instead.",
+  "opponent": "A state that follows a docs/design.md row has left the Parity oracle behind, and says so with `opponent` (ADR 0015): { capture, crop, ours } — a file name under dev/ref/ia/shots/mac-native/, the rectangle [x, y, w, h] in that capture's device px, and the matching rectangle in ours, either given outright or as the string \"centre\". The Design oracle's window is 3024 x 1898 device px and ours 2880 x 1800, both with the container centred, so \"centre\" means the same size at the same offset from ours' window centre; a crop whose place the chrome's height decides names its own rectangle. \"centre\" on a capture cut as a region needs two keys more: `window` [w, h], the window it came out of, and `at` [x, y], its origin in that window; nothing else reads either. A state whose `ours` is a rectangle needs neither, which is the way through when the capture's own origin was never recorded — as `mac-native-11-dark-text-size-05.png`'s was not (#165). Such a state is shot in Mono at the type the `defaults` name whatever it says itself, so the two grids compare cell for cell, and tools/gate oracle passes it over: its opponent is committed under dev/ref/ia/, not frozen from dev/legacy/.",
+  "defaults": {
+    "text": "dev/ref/sample.md",
+    "w": 1440,
+    "h": 900,
+    "scale": 2,
+    "theme": "light",
+    "font": "duo",
+    "step": 5,
+    "focus": "off",
+    "typewriter": false,
+    "live": false,
+    "syntax": "off",
+    "style": "off",
+    "spell": "off",
+    "stats": "words,characters,readingTime",
+    "chrome": "on",
+    "caret": 403,
+    "select": null,
+    "scroll": 0,
+    "nocaret": false,
+    "active": true,
+    "typing": false,
+    "menu": null,
+    "library": null,
+    "sidebar": false,
+    "search": null,
+    "preview": null,
+    "zoom": null,
+    "template": "modern",
+    "export": null
+  },
+  "assert": "A state that names `assert` instead is judged against nobody: neither oracle holds what it is about, so it is measured off ours' own pixels by tools/assert-state.mjs and the Piece takes that answer the way it takes a critic's (ADR 0017). { kind, ... } — the rule's name, and whatever that rule reads. `ghost` shoots the state a second time with the window active and holds the bar to the same column, width and band lit or ghosted, and to `alpha` of the lit bar over the paper; the alpha is solved out of the two shots rather than compared against a hex, and the state names it because docs/design.md is where it is decided. Like `opponent` it never reaches a command line, and tools/gate oracle passes such a state over. `split` and `full` are the Preview's, and neither oracle holds it either: dev/legacy/ shows Markdown as source and has no rendered page at all, and iA Writer for Mac's own preview is that app's design rather than this one's, so #263 puts Preview outside ADR 0015's reach and makes its look the spec's own. `split` reads the divider between the two papers, holds it to half the window, and holds the heading at the top of the rendered page to the centre of the pane it is drawn in; `full` holds the window to one paper and that heading to the window's own centre. Both take nothing but their kind: every number they compare — the window's width, the paper either side of the divider, the pane's centre — is read off the shot, and the 3 px they are read to is the glyph rounding NOTES § State 16 measures its own rendered heading against. Both are shot bare, `chrome` off: the bars are the chrome Piece's to judge, and at the dark palette the top bar is drawn in the Editor's own paper, so a shot carrying them has that paper above the pane as well as beside it and neither the pane's topmost ink nor \"one paper across the window\" is a thing the still can say. `pdf-split` and `pdf-full` are the same pane in its PDF mode, where the Preview draws the pages Export writes instead of the rendered sheet, and they are outside both oracles for the reason `split` and `full` are. `pdf-split` reads the Editor's paper off the left of the window, the pages' paper off the half the pane fills, and the surround off what the rest of that half is made of, and holds four things: the divider between the two at half the window, as `split` does; the surround lighter than the paper beside it, the pages being drawn in the Template's light palette whatever the theme is wearing, so a dark theme's Editor stands beside a light pane; the page standing in the column with a gutter each side rather than filling it; and the page centred in the pane it is drawn in, to the same 3 px. `pdf-full` holds that page to the centre of the window with the Editor gone, and holds the air over it to the gap the column stacks its pages with — every gap between two pages the window is tall enough to show is held to that one, and at the width of the judged window a page fitted to it stands taller than the window, so the still carries the head of the first page and the air over it. Both take nothing but their kind, and both are shot bare for the reasons `split` and `full` are. `pdf-full` is shot at the light theme, where the surround and the Editor's paper are one colour: what a rule reads there is the page's own white and the gutter either side of it, not an edge between the pane and a paper. `dialog` is the Export dialog's, and neither oracle holds that either: dev/legacy/ has no Export dialog at all, and iA Writer for Mac's own is that app's dialog rather than this one's, so #282 puts it where the Preview pair are. The app dims the Editor under the dialog and leaves the Preview pane readable. Its second shot removes the Export flag to capture bare PDF Split, then the rule holds four facts from the pair: the Editor's ground is darker than the pane surround; the pane surround is exactly the colour it has in bare PDF Split; a lighter page stands on that surround; and a dialog rectangle lies wholly inside the window, centred to 8 px, with at least eight bands of ink proving its Options are open. The dialog and pane surround share the light ground, so the rectangle is read by the majority of its rows and columns rather than by asking that shared colour for one global extent. It takes nothing but its kind and is shot bare, `chrome` off, for the reason the other Preview assertions are. `outline` is the Palette on the open Document's Outline (#397), and neither oracle holds it: dev/legacy/'s Palette has no Outline listing, and no capture under dev/ref/ia/shots/mac-native/ holds iA Writer for Mac's outline, whose home in that app is its own design rather than this one's. Its second shot removes the menu for the bare page, and the panel is where the Outline shot differs from it, so no colour written down anywhere says what a panel is; the rule holds two facts: a panel stands wholly inside the window, and under its field it carries at least two bands of ink with the second's starting to the right of the first's — dev/ref/sample.md's two headings are a level 1 and a level 2, and the step is the indent. Each band's ink is read against the band's own ground, because the selected row is drawn on the accent with its words in white. It takes nothing but its kind. `spell` is Spell check (#401), and the two states left to it are the two the Design oracle's capture (#400) shot no frame of: the caret parked in a marked word, and the \"no dictionary\" state. The Piece's other eight name a `mac-native` crop and are judged against it (ADR 0015); dev/legacy/ had spell check off and its mark when on was the browser's own, so these two have no opponent of either kind. The second shot switches Spell check off and leaves every other flag standing, so the difference is the marks: { kind, theme, words, status } — `theme` picks the `spell` Role's value on that ground (tools/keys-assert.mjs SPELL and SPELL_DARK, held to quill-engine/src/theme.rs), `words` is how many marks the page carries, seven on dev/ref/spell.md — `DRAFFT` is an all-caps word the dictionary does not hold and is left alone — the caret parked at the end of `comittee` included, because a parked caret keeps its word's mark and only a word being typed withholds it — that case is `tools/gate keys spell`'s, and the rule holds each to a thin band of dots under a line of prose, over columns that line has ink in, mostly in the Role's hue at any strength — over a Category colour, over the selection fill, and at full strength under Focus, where the word dims and the mark does not — with nothing changed outside the text column. `status: true` is the \"no dictionary\" state, pinned by `--spell on:xx_XX`: no wave, and the difference one band at the window's foot, the status line's one line, none of it the Role's. The words' rectangles are read off the difference rather than written here, because where a word lands is the wrap's answer. `pinned` is the Library pane's pin (#450), asserted until the capture #440 holds a pinned row: one Document pinned through `--library`'s `pinned=` override form. The second shot takes that override out and leaves every other flag standing, so the difference is the pin: { kind, organizer, icon } — `organizer` is the Organizer's width in device px (130 pt at scale 2), and the rule holds that something changed left of it, the Pinned section taking the Document's row, and that everything right of it that changed fits inside one `icon` cell, [width, height] in device px (the page icon's 12 × 15 pt), the pin through that Document's page and nothing else of the File List. `menu` is the View menu (#467), asserted since that spec rebuilt it in five headed sections over an unheaded foot: dev/legacy/ holds the long list it left behind, and no capture under dev/ref/ia/shots/mac-native/ holds a menu of Quill's own sections, so neither oracle can arbitrate it. Its second shot removes the menu for the bare page, and the menu is where the shot differs from it, as the Outline's panel is: { kind, sections, foot } — `sections` is how many rows stand under each head, top to bottom, [5, 5, 3, 3, 3] for Focus, Panes, Writing Tools, Typeface and Window, and `foot` the rows under no head, Settings… and All Commands…. A still cannot read a head's word, so the order is read as the one thing it leaves on the pixels, the rows under each head in turn. A head is a band in the dim small-caps ink, split from the rows at the midpoint between the faintest band's ink and the strongest's, and a section is the run between two of the hairlines GTK draws between them; the rule holds every run to a head over its rows except the last, which is the foot and carries none. What each row says is the Hand test's. `settings` is the Settings window (#467), asserted since that spec rebuilt it as a sidebar of five panes: dev/legacy/ has the grid it left behind, and no capture under dev/ref/ia/shots/mac-native/ holds a window of Quill's own panes. The state names `pane`, which opens the window on that pane as a second toplevel the harness overlays on the page, as it does the Export dialog; `pane` is a state's own key and never a default's, because a default is in every Piece's fingerprint. Its second shot removes the pane for the bare page, and the window is where the two differ: { kind, pane, heads, controls } — `pane` is the sidebar row the window has selected, 0 to 4 for General, Library, Template, Export and Advanced, read as the one row of the sidebar's last five drawn on a fill; `heads` is the pane's group heads and `controls` its rows that carry a control, a pane band being a control row when it reaches the control column at the pane's right quarter, where every switch, dropdown, spin button, slider and button stands, and a head when it does not. What each row says, and what its control does, is the Hand test's. `palette-control` is the Palette on a query that lists settings rows (#467), asserted since that spec taught the Palette a second kind of row holding a live control: dev/legacy/'s Palette lists Commands alone, and no capture under dev/ref/ia/shots/mac-native/ holds a Palette of Quill's settings. The state names `query`, which the app types into the Palette's field as it opens; like `pane` it is a state's own key and never a default's. Its second shot removes the menu and the query for the bare page, and the panel is where the two differ, as the Outline's is: { kind, rows } — `rows` is what ends each settings row in turn, `control` or `jump`, the settings rows being the rows under the last head, SETTINGS, since the Commands are listed above it. A head is a band in the dim ink with nothing at the row's end, which tells it from a disabled Command, whose chord stands there. A row's end is the element whose drawn columns end in the panel's right quarter, read at any difference from the ground so a dropdown's faint frame counts: a control when it stands 1.4 times the height of the row's words, a switch's track or a dropdown's frame, and a jump row's \"Opens Settings\" when it is words of that height. What each control is, and what Enter does to it, is the Hand test's and `tools/gate keys`'.",
+  "reference": "A state that names no `opponent` is judged against the Parity oracle while dev/legacy/ stands. When dev/legacy/ is gone the opponent for every state is a mac-native crop, named the way `opponent` above says; the gauntlet's own crop recipes, recorded as refSource in dev/progress/rounds/<piece>-r1.json, were read off marketing frames and are history rather than an opponent (ADR 0015).",
+  "pieces": {
+    "type": {
+      "duo": {
+        "chrome": "off"
+      },
+      "quattro": {
+        "chrome": "off",
+        "font": "quattro"
+      },
+      "mono": {
+        "chrome": "off",
+        "font": "mono",
+        "theme": "dark",
+        "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-11-dark-text-size-05.png",
+          "crop": [
+            630,
+            870,
+            1760,
+            520
+          ],
+          "ours": [
+            560,
+            135,
+            1760,
+            520
+          ]
+        }
+      }
+    },
+    "page": {
+      "light": {},
+      "narrow": {
+        "w": 960,
+        "font": "mono",
+        "chrome": "off",
+        "opponent": {
+          "capture": "mac-native-22-light-narrow-w0960-step05-plain.png",
+          "crop": [
+            0,
+            0,
+            1920,
+            1000
+          ],
+          "ours": [
+            0,
+            0,
+            1920,
+            1000
+          ]
+        }
+      },
+      "short": {
+        "text": "dev/ref/short.md",
+        "caret": 10,
+        "scroll": null,
+        "chrome": "off"
+      }
+    },
+    "markup": {
+      "gutters": {
+        "text": "dev/ref/ia/mac-native/passage-markers.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-14-dark-markup-gutters.png",
+          "crop": [
+            470,
+            1020,
+            780,
+            460
+          ],
+          "ours": [
+            400,
+            288,
+            780,
+            460
+          ]
+        }
+      },
+      "blocks": {
+        "text": "dev/ref/ia/mac-native/passage-markers.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-14-dark-markup-blocks.png",
+          "crop": [
+            470,
+            140,
+            780,
+            620
+          ],
+          "ours": [
+            400,
+            656,
+            780,
+            620
+          ]
+        }
+      },
+      "wrapped": {
+        "text": "dev/ref/ia/mac-native/passage-wrapped.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-19-dark-wrapped-markers.png",
+          "crop": [
+            644,
+            130,
+            1750,
+            1430
+          ],
+          "ours": [
+            593,
+            146,
+            1750,
+            1430
+          ]
+        }
+      }
+    },
+    "caret": {
+      "caret": {
+        "chrome": "off",
+        "caret": 23,
+        "opponent": {
+          "capture": "mac-native-01-light-caret-midword.png",
+          "crop": [
+            459,
+            187,
+            720,
+            260
+          ],
+          "ours": [
+            392,
+            205,
+            720,
+            260
+          ]
+        }
+      },
+      "selection": {
+        "select": [
+          18,
+          36
+        ],
+        "caret": 36,
+        "chrome": "off",
+        "opponent": {
+          "capture": "mac-native-08-light-selection-inline.png",
+          "crop": [
+            470,
+            187,
+            800,
+            260
+          ],
+          "ours": [
+            402,
+            203,
+            800,
+            260
+          ]
+        }
+      },
+      "unfocused": {
+        "active": false,
+        "chrome": "off",
+        "assert": {
+          "kind": "ghost",
+          "alpha": 0.3
+        }
+      }
+    },
+    "theme": {
+      "light": {
+        "text": "dev/ref/ia/mac-native/passage-markup.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "opponent": {
+          "capture": "mac-native-17-light-marks.png",
+          "crop": [
+            654,
+            553,
+            600,
+            380
+          ],
+          "ours": [
+            584,
+            730,
+            600,
+            380
+          ]
+        }
+      },
+      "dark": {
+        "text": "dev/ref/ia/mac-native/passage-markup.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-17-dark-marks.png",
+          "crop": [
+            654,
+            553,
+            600,
+            380
+          ],
+          "ours": [
+            584,
+            730,
+            600,
+            380
+          ]
+        }
+      },
+      "dark-bars": {
+        "theme": "dark"
+      }
+    },
+    "focus": {
+      "sentence": {
+        "focus": "sentence",
+        "chrome": "off",
+        "caret": 140,
+        "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-13-light-focus-sentence.png",
+          "crop": [
+            620,
+            643,
+            1740,
+            320
+          ],
+          "ours": [
+            551,
+            129,
+            1740,
+            320
+          ]
+        }
+      },
+      "paragraph": {
+        "focus": "paragraph",
+        "chrome": "off",
+        "caret": 140,
+        "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-13-light-focus-paragraph.png",
+          "crop": [
+            620,
+            643,
+            1740,
+            320
+          ],
+          "ours": [
+            551,
+            129,
+            1740,
+            320
+          ]
+        }
+      },
+      "dark-sentence-typewriter": {
+        "focus": "sentence",
+        "typewriter": true,
+        "theme": "dark",
+        "chrome": "off"
+      }
+    },
+    "chrome": {
+      "bars": {},
+      "empty": {
+        "text": null,
+        "caret": 0
+      },
+      "typing": {
+        "typing": true
+      },
+      "view-menu": {
+        "menu": "view",
+        "assert": {
+          "kind": "menu",
+          "sections": [
+            5,
+            5,
+            3,
+            3,
+            3
+          ],
+          "foot": 2
+        }
+      },
+      "palette": {
+        "menu": "palette"
+      },
+      "palette-settings": {
+        "menu": "palette",
+        "query": "ln",
+        "assert": {
+          "kind": "palette-control",
+          "rows": [
+            "jump",
+            "control",
+            "control",
+            "jump"
+          ]
+        }
+      },
+      "outline": {
+        "menu": "outline",
+        "assert": {
+          "kind": "outline"
+        }
+      },
+      "stats-menu": {
+        "menu": "stats"
+      },
+      "selection": {
+        "text": "dev/ref/short.md",
+        "select": [
+          25,
+          149
+        ],
+        "caret": 149
+      }
+    },
+    "files": {
+      "library": {
+        "library": "dev/shots/oracle/library",
+        "sidebar": true,
+        "text": "dev/shots/oracle/library/sea-storm.md",
+        "caret": 0,
+        "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-28-light-library-l1-rest.png",
+          "crop": [
+            0,
+            0,
+            720,
+            1898
+          ],
+          "ours": [
+            0,
+            0,
+            720,
+            1800
+          ]
+        }
+      },
+      "search": {
+        "library": "dev/shots/oracle/library",
+        "sidebar": true,
+        "search": "sea",
+        "text": "dev/shots/oracle/library/sea-storm.md",
+        "caret": 0,
+        "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-28-light-library-l2-search.png",
+          "crop": [
+            0,
+            0,
+            720,
+            1898
+          ],
+          "ours": [
+            0,
+            0,
+            720,
+            1800
+          ]
+        }
+      },
+      "pinned": {
+        "library": "dev/shots/oracle/library:pinned=sea-storm.md",
+        "sidebar": true,
+        "text": "dev/shots/oracle/library/sea-storm.md",
+        "caret": 0,
+        "nocaret": true,
+        "assert": {
+          "kind": "pinned",
+          "organizer": 260,
+          "icon": [
+            24,
+            30
+          ]
+        }
+      }
+    },
+    "latency": {},
+    "live": {
+      "folded": {
+        "chrome": "off",
+        "live": true,
+        "caret": 403,
+        "assert": {
+          "kind": "folded",
+          "scale": 1.6
+        }
+      }
+    },
+    "preview": {
+      "split": {
+        "theme": "dark",
+        "chrome": "off",
+        "preview": "split",
+        "template": "modern",
+        "assert": {
+          "kind": "split"
+        }
+      },
+      "full": {
+        "theme": "light",
+        "chrome": "off",
+        "preview": "full",
+        "template": "modern",
+        "assert": {
+          "kind": "full"
+        }
+      },
+      "pdf-split": {
+        "theme": "dark",
+        "chrome": "off",
+        "preview": "pdf-split",
+        "template": "modern",
+        "assert": {
+          "kind": "pdf-split"
+        }
+      },
+      "pdf-full": {
+        "text": "dev/shots/oracle/pages.md",
+        "w": 700,
+        "zoom": 75,
+        "theme": "light",
+        "chrome": "off",
+        "preview": "pdf-full",
+        "template": "modern",
+        "assert": {
+          "kind": "pdf-full"
+        }
+      }
+    },
+    "export": {
+      "dialog": {
+        "text": "dev/ref/short.md",
+        "theme": "light",
+        "chrome": "off",
+        "export": "pdf",
+        "preview": "pdf-split",
+        "caret": 0,
+        "nocaret": true,
+        "assert": {
+          "kind": "dialog"
+        }
+      }
+    },
+    "settings": {
+      "general": {
+        "text": "dev/ref/short.md",
+        "theme": "light",
+        "chrome": "off",
+        "pane": "general",
+        "caret": 0,
+        "nocaret": true,
+        "assert": {
+          "kind": "settings",
+          "pane": 0,
+          "heads": 0,
+          "controls": 5
+        }
+      },
+      "export": {
+        "text": "dev/ref/short.md",
+        "theme": "dark",
+        "chrome": "off",
+        "pane": "export",
+        "caret": 0,
+        "nocaret": true,
+        "assert": {
+          "kind": "settings",
+          "pane": 3,
+          "heads": 0,
+          "controls": 6
+        }
+      },
+      "library": {
+        "text": "dev/ref/short.md",
+        "theme": "light",
+        "chrome": "off",
+        "pane": "library",
+        "library": "dev/shots/oracle/library",
+        "caret": 0,
+        "nocaret": true,
+        "assert": {
+          "kind": "settings",
+          "pane": 1,
+          "heads": 3,
+          "controls": 6
+        }
+      }
+    },
+    "syntax": {
+      "all-light": {
+        "text": "dev/ref/ia/mac-native/passage-syntax.md",
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "chrome": "off",
+        "syntax": "on",
+        "focus": "off",
+        "live": false,
+        "opponent": {
+          "capture": "mac-native-308-original-mbp-light-syntax-all.png",
+          "crop": [
+            640,
+            140,
+            1700,
+            340
+          ],
+          "ours": [
+            571,
+            36,
+            1700,
+            340
+          ]
+        }
+      },
+      "all-dark": {
+        "text": "dev/ref/ia/mac-native/passage-syntax.md",
+        "caret": 0,
+        "nocaret": true,
+        "theme": "dark",
+        "chrome": "off",
+        "syntax": "on",
+        "focus": "off",
+        "live": false,
+        "opponent": {
+          "capture": "mac-native-308-original-mbp-dark-syntax-all.png",
+          "crop": [
+            640,
+            140,
+            1700,
+            340
+          ],
+          "ours": [
+            571,
+            36,
+            1700,
+            340
+          ]
+        }
+      },
+      "adjectives-adverbs": {
+        "theme": "light",
+        "chrome": "off",
+        "syntax": "adjectives,adverbs",
+        "focus": "off",
+        "live": false,
+        "assert": {
+          "kind": "syntax",
+          "theme": "light",
+          "expected": [
+            "adjectives",
+            "adverbs"
+          ]
+        }
+      },
+      "focus-sentence": {
+        "text": "dev/ref/ia/mac-native/passage-syntax.md",
+        "caret": 177,
+        "theme": "light",
+        "chrome": "off",
+        "syntax": "on",
+        "focus": "sentence",
+        "live": false,
+        "opponent": {
+          "capture": "mac-native-308-original-mbp-light-syntax-focus.png",
+          "crop": [
+            640,
+            743,
+            1700,
+            340
+          ],
+          "ours": [
+            571,
+            36,
+            1700,
+            340
+          ]
+        }
+      },
+      "live": {
+        "theme": "light",
+        "chrome": "off",
+        "syntax": "on",
+        "focus": "off",
+        "live": true,
+        "assert": {
+          "kind": "syntax",
+          "theme": "light",
+          "expected": [
+            "nouns",
+            "verbs",
+            "adjectives",
+            "adverbs",
+            "conjunctions"
+          ],
+          "live": true
+        }
+      }
+    },
+    "style": {
+      "on-light": {
+        "text": "dev/ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-light-style-all.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "on-dark": {
+        "text": "dev/ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-dark-style-all.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "fillers-light": {
+        "text": "dev/ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "off",
+        "style": "fillers",
+        "opponent": {
+          "capture": "mac-native-24-light-style-list-fillers.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "focus-light": {
+        "text": "dev/ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 150,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "sentence",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-light-style-focus-sentence.png",
+          "crop": [
+            680,
+            846,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "focus-dark": {
+        "text": "dev/ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 150,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "off",
+        "focus": "sentence",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-dark-style-focus-sentence.png",
+          "crop": [
+            680,
+            846,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "syntax-light": {
+        "text": "dev/ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "on",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-light-style-syntax.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "syntax-dark": {
+        "text": "dev/ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "on",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-dark-style-syntax.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "select-light": {
+        "text": "dev/ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "select": [
+          115,
+          131
+        ],
+        "caret": 131,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-light-style-selection.png",
+          "crop": [
+            1572,
+            380,
+            490,
+            80
+          ],
+          "ours": [
+            1686,
+            280,
+            490,
+            80
+          ]
+        }
+      },
+      "select-dark": {
+        "text": "dev/ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "select": [
+          115,
+          131
+        ],
+        "caret": 131,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-dark-style-selection.png",
+          "crop": [
+            1572,
+            380,
+            490,
+            80
+          ],
+          "ours": [
+            1686,
+            280,
+            490,
+            80
+          ]
+        }
+      }
+    },
+    "spell": {
+      "on-light": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 257,
+        "nocaret": true,
+        "syntax": "off",
+        "focus": "off",
+        "style": "off",
+        "spell": "on",
+        "theme": "light",
+        "opponent": {
+          "capture": "mac-native-26-light-spell-s1-rest.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
+        }
+      },
+      "on-dark": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 257,
+        "nocaret": true,
+        "syntax": "off",
+        "focus": "off",
+        "style": "off",
+        "spell": "on",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-26-dark-spell-s1-rest.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
+        }
+      },
+      "focus-light": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 122,
+        "nocaret": true,
+        "syntax": "off",
+        "focus": "sentence",
+        "style": "off",
+        "spell": "on",
+        "theme": "light",
+        "opponent": {
+          "capture": "mac-native-26-light-spell-s2-focus.png",
+          "crop": [
+            692,
+            781,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
+        }
+      },
+      "focus-dark": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 122,
+        "nocaret": true,
+        "syntax": "off",
+        "focus": "sentence",
+        "style": "off",
+        "spell": "on",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-26-dark-spell-s2-focus.png",
+          "crop": [
+            692,
+            781,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
+        }
+      },
+      "syntax-light": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 257,
+        "nocaret": true,
+        "syntax": "on",
+        "focus": "off",
+        "style": "off",
+        "spell": "on",
+        "theme": "light",
+        "opponent": {
+          "capture": "mac-native-26-light-spell-s3-syntax.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
+        }
+      },
+      "syntax-dark": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 257,
+        "nocaret": true,
+        "syntax": "on",
+        "focus": "off",
+        "style": "off",
+        "spell": "on",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-26-dark-spell-s3-syntax.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
+        }
+      },
+      "select-light": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 86,
+        "nocaret": true,
+        "syntax": "off",
+        "focus": "off",
+        "style": "off",
+        "spell": "on",
+        "theme": "light",
+        "select": [
+          68,
+          86
+        ],
+        "opponent": {
+          "capture": "mac-native-26-light-spell-s4-selection.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
+        }
+      },
+      "select-dark": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 86,
+        "nocaret": true,
+        "syntax": "off",
+        "focus": "off",
+        "style": "off",
+        "spell": "on",
+        "theme": "dark",
+        "select": [
+          68,
+          86
+        ],
+        "opponent": {
+          "capture": "mac-native-26-dark-spell-s4-selection.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
+        }
+      },
+      "caret-light": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 104,
+        "nocaret": true,
+        "syntax": "off",
+        "focus": "off",
+        "style": "off",
+        "spell": "on",
+        "theme": "light",
+        "assert": {
+          "kind": "spell",
+          "theme": "light",
+          "words": 7
+        }
+      },
+      "missing-light": {
+        "text": "dev/ref/spell.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 257,
+        "nocaret": true,
+        "syntax": "off",
+        "focus": "off",
+        "style": "off",
+        "spell": "on:xx_XX",
+        "theme": "light",
+        "library": "dev/shots/oracle/library",
+        "sidebar": true,
+        "assert": {
+          "kind": "spell",
+          "theme": "light",
+          "words": 0,
+          "status": true
+        }
+      }
+    }
+  },
+  "keys": {
+    "_about": "The scripts tools/gate keys <piece> types, beside the states tools/gate judge shoots, so a Piece is one entry to find. A Piece may carry none, and most do not. `state` overrides `defaults` exactly as a judged state does, but the app is opened Live rather than --deterministic: a still wants the blink frozen and the glide gone, and a typed condition wants the caret machine running, because that machine is what it is there to test. Each burst is typed in full, then shot, then its `assert` list is evaluated from the pixels; `between` is evaluated across consecutive bursts, and skips a pair with a burst that left no caret on the page. A burst types its `text` and then its `keys`, which is the form that can spell a chord and the only one that can; `settle` says which still it is shot at (`caret`, the default, or `still` for a page a selection has taken the caret off), and `chars`, `rows` and `accent` are what the assertions measure against — `accent` being a boolean, because a burst that expects the accent gone is asserting as much as one that expects it there. The assertion and settle names are tools/keys-assert.mjs's.",
+    "caret": {
+      "_about": "Four bursts on a Document that starts empty. The first two are tools/keys-fixture's, which is what #108's defect was found by hand with: the Document is empty so the first glyph starts at the left margin and the bar has nowhere to hide. The third adds two more rows and selects the lot with Control+a, which is #146's defect — the last row of a Document left unpainted by the selection — and it needs the rows to be of different lengths, because that is what tells one row band from the next (`readSelectionRows` in tools/keys-assert.mjs). So by the end of it the Document is three rows of 38, 4 and 10 characters, all selected, and the caret is out; its second assertion is #168's, that the middle row fills the container and not its own four characters of ink. The fourth types over that selection, replacing the Document with two short rows and a trailing newline, and selects the lot: the selection then ends past a newline rather than past a glyph, which is the shape no still shows — a held newline filling to the container's right edge rather than to a stub past the last glyph. The empty row the trailing newline opens is inside the selection and holds none of it, so it is a fill of no width and there are two bands rather than three. The chrome is off both because the caret Piece is judged bare (#139) and because the chrome's fade-on-typing is an animation, which is one more thing for `steady` to wait out inside the caret's idle hold — the on-phase an edit puts the blink back to the top of, which is `ON` in quill/src/caret.rs and where the number is kept.",
+      "state": {
+        "text": null,
+        "caret": 0,
+        "chrome": "off"
+      },
+      "bursts": [
+        {
+          "name": "typing-16",
+          "text": "dfdfsdfsdfsdfsdf",
+          "chars": 16,
+          "assert": [
+            "bar-after-ink"
+          ]
+        },
+        {
+          "name": "typing-38",
+          "text": "fefefefefefsfesfesfesf",
+          "chars": 38,
+          "assert": [
+            "bar-after-ink"
+          ]
+        },
+        {
+          "name": "select-all",
+          "text": "\nffff\nssssssssss",
+          "chars": 54,
+          "keys": [
+            {
+              "press": "Control+a"
+            }
+          ],
+          "settle": "still",
+          "rows": 3,
+          "assert": [
+            "selection-rows",
+            "selection-container-wide"
+          ]
+        },
+        {
+          "name": "newline-held",
+          "text": "aa\nbbbb\n",
+          "chars": 62,
+          "keys": [
+            {
+              "press": "Control+a"
+            }
+          ],
+          "settle": "still",
+          "rows": 2,
+          "assert": [
+            "selection-newline-to-edge"
+          ]
+        }
+      ],
+      "between": [
+        "bar-moved-right"
+      ]
+    },
+    "chrome": [
+      {
+        "_about": "Two bursts on dev/ref/short.md with the chrome on, for the one thing about the stats bar that no still can show: that the bar answered a selection the writer made rather than a selection the harness pinned. The judged `selection` state proves the bar can be drawn that way; this proves it gets there from the keyboard. The caret opens at byte 25, where the passage's second paragraph starts, and the first burst holds Shift+Control+End to the end of the Document — a partial selection on purpose, so the cells under the Selection label are a different set of numbers from the Document's and not the same ones relabelled. It settles at `still`, because a selection takes the caret off the page entirely (ADR 0014). The second burst presses Control+Home, which clears the selection without editing a byte: the caret comes back, so it settles at `caret`, and the bar is the Document's again. `stats-bar-accent` is asserted after both, true then false, and `stats-bar-changed` across the pair, which is the assertion that the bar did not simply sit there. The chrome is on, where the caret Piece's script has it off, because the bar is the whole subject here.",
+        "state": {
+          "text": "dev/ref/short.md",
+          "caret": 25,
+          "chrome": "on"
+        },
+        "bursts": [
+          {
+            "name": "select-to-end",
+            "chars": 0,
+            "keys": [
+              {
+                "press": "Shift+Control+End"
+              }
+            ],
+            "settle": "still",
+            "accent": true,
+            "assert": [
+              "stats-bar-accent"
+            ]
+          },
+          {
+            "name": "clear",
+            "chars": 0,
+            "keys": [
+              {
+                "press": "Control+Home"
+              }
+            ],
+            "accent": false,
+            "assert": [
+              "stats-bar-accent"
+            ]
+          }
+        ],
+        "between": [
+          "stats-bar-changed"
+        ]
+      },
+      {
+        "_about": "The Palette's settings rows (#467), for the one thing about them a still cannot show: that Enter on a settings row operates its control and leaves the Palette up, where Enter on a Command runs it and closes. The Palette is opened by `--menu palette` on an empty Document with the bars off, so that every column it does not cover is paper and `palette-up` finds the panel against that paper alone. The first burst types `ask`, which lists no Command and one settings row, Always ask where to save, a switch — so it is the selected row. The second types a newline, which is Enter: the injector presses no bare Enter (a named key needs a modifier), and a newline inside `text` is the keyboard's Return. `palette-up` is asked after both, and `switch-flipped` across the pair: the widest run of columns that changed is a switch's width, not the Palette's, and the knob in it travelled. `settings` names the file the launch opens on, copied fresh for the run, so the flip is written to the copy and never to the writer's `settings.toml`. Enter on the Settings window's search is Hand test step 9: `gate keys` shoots the main toplevel only.",
+        "state": {
+          "text": null,
+          "caret": 0,
+          "chrome": "off",
+          "menu": "palette",
+          "settings": "tools/keys-fixture/settings.toml"
+        },
+        "bursts": [
+          {
+            "name": "palette-query",
+            "text": "ask",
+            "chars": 3,
+            "settle": "still",
+            "assert": [
+              "palette-up"
+            ]
+          },
+          {
+            "name": "palette-enter",
+            "text": "\n",
+            "chars": 4,
+            "settle": "still",
+            "assert": [
+              "palette-up"
+            ]
+          }
+        ],
+        "between": [
+          "switch-flipped"
+        ]
+      }
+    ],
+    "spell": {
+      "_about": "Two bursts on dev/ref/spell.md under --spell on, for the one Spell check rule a still cannot show: the caret rule. The caret opens at byte 257, the end of the passage before its trailing newline, so what is typed joins the last paragraph. The first burst types ` comittee` as characters — the space is a character in the text rather than the named key, because a bare named key cannot be pressed without a modifier — and leaves the caret after the misspelling with a word character before it, so the Editor withholds that word’s mark: `spell-mark` with `mark: false`. The second types one space, which releases it: `spell-mark` with `mark: true`. The rule looks only under the word the bar stands after, never its whole row, because the row is the wrapped paragraph and holds `accomodate` to its left. The chrome is off, as the caret Piece’s script has it, so no fade is waited out inside the caret’s idle hold. The fixture dictionary every launch reads (dev/ref/spell/) holds `committee`, so `comittee` is a misspelling there and not on the machine’s word.",
+      "state": {
+        "text": "dev/ref/spell.md",
+        "caret": 257,
+        "chrome": "off",
+        "spell": "on"
+      },
+      "bursts": [
+        {
+          "name": "typing",
+          "text": " comittee",
+          "chars": 9,
+          "assert": [
+            "spell-mark"
+          ],
+          "mark": false
+        },
+        {
+          "name": "space",
+          "text": " ",
+          "chars": 10,
+          "assert": [
+            "spell-mark"
+          ],
+          "mark": true
+        }
+      ],
+      "between": [
+        "bar-moved-right"
+      ]
+    }
+  },
+  "library": "Both `files` states are judged on a `mac-native` crop of the Library pane alone (#448): device columns 0 to 719 of State 28's whole-window frames, top to bottom, against the same 720 columns of ours, the pane and its head, so the legacy frozen shots are gone. The `files` states open a Library on `dev/shots/oracle/library`, the fixture committed beside this file: eight documents in the four extensions, one Collection, one dot-folder that must not show, and `manifest.json`, the mtime each is stamped with so the Date sort is the same on every machine. `text` names one of those files rather than the shared passage, so both sides show the document the sidebar has selected; the Parity oracle's Library is the browser's, seeded from the fixture by `dev/legacy/tools/shoot.mjs --library` (its folder location wants a picker and cannot be driven headless). Both states are shot with `nocaret`: the oracle places the bar of a Library-opened document three logical pixels either side of the first glyph depending on when it is measured, which is one shot in three, and the caret is the caret Piece's to judge rather than this one's."
+}

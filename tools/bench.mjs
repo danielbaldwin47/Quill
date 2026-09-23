@@ -53,14 +53,14 @@ import {
 const BINARY = 'target/release/quill';
 
 // The document the headline regime is typed into: 10,062 words, the size a draft actually is.
-const DOC = 'shots/latency/doc10k.md';
+const DOC = 'dev/shots/latency/doc10k.md';
 
 // The window a bench runs in — the judged states' size, so that the layout being timed is the
 // layout being judged.
 const WINDOW = { w: 1440, h: 900 };
 
 // Where results land, and which regime `tools/gate bench` runs when told nothing else.
-const RESULTS = 'shots/latency';
+const RESULTS = 'dev/shots/latency';
 const HEADLINE = 'prose_end_of_draft';
 
 // What `informational` says inside a panel result. A sentence rather than `true`, because the field
@@ -144,7 +144,7 @@ result file, one regime or nineteen, is marked informational inside and named be
 // ---------- what produced the numbers ----------
 
 // Everything about this machine and this build that a second run would have to match for the two to
-// be comparable. The same question `legacy/tools/latency.mjs` answers for the oracle's numbers, so
+// be comparable. The same question `dev/legacy/tools/latency.mjs` answers for the oracle's numbers, so
 // that a native result and an oracle result can be read side by side.
 function fingerprint(root, stage) {
   let dirty = null;
@@ -307,7 +307,7 @@ async function settled(file) {
 /// Where the regime says the writer is, in the flag the app takes.
 ///
 /// `end` is the flag's own word. `middle` is the first line break past half the document — the
-/// same rule `legacy/tools/latency.mjs` applies, so that the two benches type into the same
+/// same rule `dev/legacy/tools/latency.mjs` applies, so that the two benches type into the same
 /// paragraph — except that the app counts UTF-8 bytes where the browser counted characters, so the
 /// search is done on the bytes and the offset is a byte offset.
 // Read once. It is a fact about a file that does not change under a run, and a run asks for it
