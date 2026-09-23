@@ -2,7 +2,7 @@
 
 A focused Markdown writing app for Linux. Native GTK4, written in Rust.
 
-![Quill with the Library open beside a document](docs/screenshot.png)
+![A document in Quill with Live on: headings and emphasis rendered in place, the caret in blue](docs/screenshot.png)
 
 ## Install
 
@@ -35,6 +35,8 @@ quill notes.md          # open a file
   nouns, verbs, adjectives, adverbs and conjunctions.
 - **Statistics**: words, characters, sentences, paragraphs and reading time.
 - Three typefaces (Duo, Quattro and Mono), light and dark, and palettes you can set yourself.
+
+![Focus mode in dark: the sentence being written stays bright and the rest of the page dims](docs/screenshot-focus-dark.png)
 
 `Ctrl+K` opens every command and setting in one searchable list; `docs/shortcuts.md` lists every
 shortcut.
