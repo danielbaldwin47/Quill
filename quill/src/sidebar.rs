@@ -161,13 +161,13 @@ const RESIZE_CURSOR: &str = "col-resize";
 const HEAD_HEIGHT: i32 = chrome::TOP_HEIGHT;
 /// The head's insets and the air between its buttons (`.lib-head { padding: 0
 /// 6px 0 8px; gap: 2px }`).
-const HEAD_LEFT: i32 = 8;
+pub(crate) const HEAD_LEFT: i32 = 8;
 /// What the head keeps clear of the right edge.
 const HEAD_RIGHT: i32 = 6;
 /// Between one thing in the head and the next.
 const HEAD_GAP: i32 = 2;
 /// A head button's side (`#library .lib-btn { width: 26px; height: 26px }`).
-const BUTTON: i32 = 26;
+pub(crate) const BUTTON: i32 = 26;
 /// A head button's corner (`border-radius: 5px`).
 const BUTTON_RADIUS: i32 = 5;
 /// The panel and plus marks in the head (`I.panel`, `I.plus`, fifteen by
@@ -362,6 +362,10 @@ type Aim = Rc<dyn Fn() -> Option<Onto>>;
 /// press's hit step is drawn on; heads and the empty-Pinned prose carry none.
 const ORG_LINE_CLASS: &str = "lib-org-line";
 
+/// The toggle that shuts the pane, which stands outside the pane's `.library`
+/// root ([`Sidebar::toggle`]) and takes the head buttons' look from this.
+const TOGGLE_CLASS: &str = "lib-toggle";
+
 /// How long the field waits after a keystroke before it searches.
 ///
 /// A content search reads every shown file whose name did not match, so the
@@ -518,12 +522,14 @@ pub fn stylesheet(ground: Ground) -> String {
          .library .lib-icon {{ color: {secondary}; }}\n\
          .library .lib-folder-icon {{ color: {accent}; }}\n\
          .library .lib-changed {{ color: {WARN}; }}\n\
-         .library button.lib-btn {{\n\
+         .library button.lib-btn, .{TOGGLE_CLASS} button.lib-btn {{\n\
          \x20 background: none; border: none; box-shadow: none; outline: none;\n\
          \x20 min-height: 0; min-width: 0; padding: 0;\n\
          \x20 border-radius: {BUTTON_RADIUS}px; color: {dim};\n\
          }}\n\
-         .library button.lib-btn:hover {{ background-color: {hit}; color: {ink}; }}\n\
+         .library button.lib-btn:hover, .{TOGGLE_CLASS} button.lib-btn:hover {{\n\
+         \x20 background-color: {hit}; color: {ink};\n\
+         }}\n\
          .library button.lib-offer {{\n\
          \x20 font-size: {META_PX}px; padding: 0 {OFFER_PAD}px;\n\
          }}\n\
@@ -673,10 +679,16 @@ struct Grab {
 /// The Library beside the page.
 #[derive(Clone)]
 pub struct Sidebar {
-    /// The pane and the divider over its right edge: what stands beside the
-    /// page ([`Sidebar::widget`]) and what is shown and hidden, since an
+    /// What stands beside the page ([`Sidebar::widget`]): the pane with the
+    /// divider over its right edge, slid in from the window's left edge and
+    /// out again (#485). It is the whole overlay that slides, since an
     /// overlay whose pane is away would still take the divider's room.
-    frame: gtk::Overlay,
+    frame: gtk::Revealer,
+    /// The toggle that shuts the pane ([`Sidebar::toggle`]), which stands
+    /// over the window where the Organizer's head leaves room for it rather
+    /// than in the head, so that the slide never carries it from under the
+    /// pointer that pressed it (#485).
+    toggle: gtk::Box,
     root: gtk::Box,
     /// The Organizer's column, whose width [`Sidebar::set_width`] keeps at
     /// [`organizer_width`] of the pane's.
@@ -898,15 +910,38 @@ impl Sidebar {
         divider.set_width_request(GRAB);
         divider.set_halign(gtk::Align::End);
         divider.set_cursor_from_name(Some(RESIZE_CURSOR));
-        let frame = gtk::Overlay::new();
-        frame.set_child(Some(&root));
-        frame.add_overlay(&divider);
-        frame.set_hexpand(false);
-        // Hidden on the frame and not on the pane: a hidden pane inside a
-        // shown overlay would still leave the divider's strip beside the page.
-        frame.set_visible(false);
+        let overlay = gtk::Overlay::new();
+        overlay.set_child(Some(&root));
+        overlay.add_overlay(&divider);
+        // The oracle's `#library` slide, `translateX(-100%)` to `none`, with
+        // `#app`'s `padding-left` in step: the Revealer gives the pane its full
+        // width and shows the part of it that has come in, while its own width
+        // grows with that part, so the page is given a narrower window, and
+        // recentres, on every frame of the slide. It eases out cubic over
+        // [`MOTION_MS`], turns back from where it stands, and does not move
+        // while the window is unmapped or `gtk-enable-animations` is off,
+        // which it reads for itself, so a window opening with the pane, a
+        // harness shot and a desktop asking for no motion all have it at rest.
+        let frame = gtk::Revealer::builder()
+            .transition_type(gtk::RevealerTransitionType::SlideRight)
+            .transition_duration(MOTION_MS)
+            .reveal_child(false)
+            .child(&overlay)
+            .hexpand(false)
+            .build();
+        // Stood exactly where the Organizer's head would hold it, so the
+        // pane at rest draws as it did with the toggle inside it.
+        let toggle = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        toggle.add_css_class(TOGGLE_CLASS);
+        toggle.set_height_request(HEAD_HEIGHT);
+        toggle.set_margin_start(HEAD_LEFT);
+        toggle.set_halign(gtk::Align::Start);
+        toggle.set_valign(gtk::Align::Start);
+        toggle.append(&button(panel_icon, "win.library.toggle"));
+        toggle.set_visible(false);
         let sidebar = Self {
             frame,
+            toggle,
             divider,
             root,
             organizer,
@@ -965,6 +1000,8 @@ impl Sidebar {
                 f64::from(under.1),
             );
         });
+        let toggle = sidebar.toggle.clone();
+        sidebar.connect_on_screen(move |on_screen| toggle.set_visible(on_screen));
         sidebar.wire();
         sidebar
     }
@@ -1004,6 +1041,28 @@ impl Sidebar {
     #[must_use]
     pub fn widget(&self) -> &gtk::Widget {
         self.frame.upcast_ref()
+    }
+
+    /// The toggle that shuts the pane, to stand over the window's top left
+    /// corner, above the pane's head: shown while any of the pane is on
+    /// screen, so it stays where it was pressed through the slide either way.
+    #[must_use]
+    pub fn toggle(&self) -> &gtk::Widget {
+        self.toggle.upcast_ref()
+    }
+
+    /// Runs `f` with whether any of the pane is on screen, each time that may
+    /// have changed: as soon as it is asked in, and not until its slide out
+    /// has ended.
+    pub fn connect_on_screen(&self, f: impl Fn(bool) + 'static) {
+        let f = Rc::new(f);
+        for property in ["reveal-child", "child-revealed"] {
+            let f = f.clone();
+            self.frame
+                .connect_notify_local(Some(property), move |frame, _| {
+                    f(frame.reveals_child() || frame.is_child_revealed());
+                });
+        }
     }
 
     /// Gives the pane its window, which is what a row opens a Document in,
@@ -1217,16 +1276,32 @@ impl Sidebar {
         }
     }
 
-    /// Whether the pane is showing.
+    /// Whether the pane is open: the state last asked for, so a pane still
+    /// sliding out answers no and one still sliding in answers yes.
     #[must_use]
     pub fn is_shown(&self) -> bool {
-        self.frame.is_visible()
+        self.frame.reveals_child()
     }
 
-    /// Shows or hides the pane. The page keeps its own centring and is simply
-    /// given a narrower window, as the oracle's is.
+    /// Slides the pane in or out (#485). The page keeps its own centring and
+    /// is simply given a narrower window, as the oracle's is.
+    ///
+    /// A pane sliding out takes neither the pointer nor the keyboard, so a
+    /// click in its last quarter second cannot leave the keyboard in a pane
+    /// that is about to be gone.
     pub fn set_shown(&self, shown: bool) {
-        self.frame.set_visible(shown);
+        self.frame.set_can_target(shown);
+        self.frame.set_can_focus(shown);
+        self.frame.set_reveal_child(shown);
+    }
+
+    /// Whether the keyboard is somewhere in the pane.
+    #[must_use]
+    pub fn holds_focus(&self) -> bool {
+        self.frame
+            .root()
+            .and_then(|root| root.focus())
+            .is_some_and(|focus| focus.is_ancestor(&self.frame))
     }
 
     /// Stands the pane at `width` logical pixels.
@@ -2600,7 +2675,7 @@ impl Sidebar {
     }
 
     /// Runs the pin of every page drawn for `path` in along `along`, or back
-    /// out of it, over [`PIN_MS`] eased out, the Organizer's Pinned row for
+    /// out of it, over [`MOTION_MS`] eased out, the Organizer's Pinned row for
     /// `path` fading with it; `done` runs on the last frame.
     ///
     /// The pages are looked for at every frame rather than once: the File
@@ -2959,12 +3034,11 @@ fn head(title: &gtk::Label) -> gtk::Box {
     head
 }
 
-/// The Organizer's head: the toggle that shuts the pane, alone.
+/// The Organizer's head: room for the toggle that shuts the pane, which
+/// stands over it from outside the pane ([`Sidebar::toggle`]).
 fn organizer_head() -> gtk::Box {
     let head = gtk::Box::new(gtk::Orientation::Horizontal, HEAD_GAP);
     head.set_height_request(HEAD_HEIGHT);
-    head.set_margin_start(HEAD_LEFT);
-    head.append(&button(panel_icon, "win.library.toggle"));
     head
 }
 
@@ -4296,9 +4370,12 @@ fn document_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     let _ = cr.stroke();
 }
 
-/// How long a pin takes to go in or come out (#441 § The pinned icon and its
-/// animation).
-const PIN_MS: i64 = 240;
+/// How long the pane takes to slide in or out (#485), and a pin to go in or
+/// come out (#441 § The pinned icon and its animation): the oracle's `.24s`
+/// (`dev/legacy/app/css/files.css` at `37c186a`, `#library` and `#app`:
+/// `transition: .24s cubic-bezier(.22, .61, .36, 1)`). Both motions ease out
+/// cubic: the pin through [`eased`], the pane through GTK's Revealer.
+const MOTION_MS: u32 = 240;
 /// How far back along its path a pin starts from, in the page icon's own
 /// units: far enough that it comes in from outside the icon's cell.
 const PIN_TRAVEL: f64 = 6.0;
@@ -4356,10 +4433,11 @@ fn approach(gesture: Gesture) -> (f64, f64) {
     (x * unit, y * unit)
 }
 
-/// How far along its [`PIN_MS`] a pin is `elapsed` microseconds in, eased out
-/// (cubic): 0 at the start, and 1 from the end on.
+/// How far along its [`MOTION_MS`] a pin is `elapsed` microseconds in, eased
+/// out (cubic): 0 at the start, and 1 from the end on. The oracle's curve,
+/// `cubic-bezier(.22, .61, .36, 1)`, is an ease-out close to this one.
 fn eased(elapsed: i64) -> f64 {
-    let t = (elapsed as f64 / (PIN_MS * 1000) as f64).clamp(0.0, 1.0);
+    let t = (elapsed as f64 / (i64::from(MOTION_MS) * 1000) as f64).clamp(0.0, 1.0);
     1.0 - (1.0 - t).powi(3)
 }
 
@@ -5067,8 +5145,8 @@ mod tests {
         );
         assert!(eased(0).abs() < f64::EPSILON);
         assert!(eased(60_000) > 0.25, "eased out: most of the way early");
-        assert!((eased(PIN_MS * 1000) - 1.0).abs() < f64::EPSILON);
-        assert!((eased(PIN_MS * 2000) - 1.0).abs() < f64::EPSILON);
+        assert!((eased(i64::from(MOTION_MS) * 1000) - 1.0).abs() < f64::EPSILON);
+        assert!((eased(i64::from(MOTION_MS) * 2000) - 1.0).abs() < f64::EPSILON);
     }
 
     /// What the File List shows holds while the Library holds it, and falls
