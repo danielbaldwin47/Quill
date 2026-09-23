@@ -34,7 +34,11 @@ A worktree starts without the evidence. `tools/gate` links it in before `oracle`
 `judge`, `shoot` and `keys` (`node tools/assets.mjs link`), so a judge there carries from earlier
 rounds, and `tools/land` copies the shots a worktree wrote back into the main checkout before it
 removes the worktree (`node tools/assets.mjs sync <worktree>`); a worktree removed any other way
-runs that `sync` first.
+runs that `sync` first. A shot the worktree wrote under a name the main checkout already holds
+with other bytes is a **clash** — two worktrees judging one Piece both wrote `r12`, say — and
+since a carried verdict is keyed on a shot's bytes, neither copy wins by default: `tools/land`
+refuses before the merge and names the paths, and `sync` exits 1 without copying them. Settle a
+clash by renumbering or deleting one side's shots and the round file that cites them.
 
 `dev/shots/oracle/library/manifest.json` still names `ref/…` and `shots/…` at the root, from before
 these folders moved under `dev/`: every frozen oracle's fingerprint hashes it, so it was left as it

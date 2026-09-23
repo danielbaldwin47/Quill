@@ -9,16 +9,17 @@
 // ignored for its own reason and is not evidence, so none is probed) — so a pattern
 // added to one and not the other goes red here. And on a scratch repository with
 // this .gitignore, a worktree gets a link to each piece of evidence it lacks and
-// nothing over a file it has, and `sync` copies back what the worktree wrote itself,
-// leaves the links, and never overwrites the main checkout's copy. No window.
+// nothing over a file it has; a shot written over a link replaces the link, not the
+// main checkout's file; and `check` and `sync` name a clash, exit 1 on it, and copy
+// back only what the main checkout lacks. No window.
 
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isEvidence, link, sync } from './assets.mjs';
+import { compare, isEvidence, link, replaceFile, sync } from './assets.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -108,15 +109,36 @@ try {
     assert.equal(link(wt).linked, 0, 'a second link finds nothing to do');
   });
 
-  ok('sync copies what the worktree wrote, and nothing else', () => {
+  ok('replaceFile over a link replaces the link and leaves the main checkout\'s file', () => {
+    const rel = 'dev/shots/chrome/r1-bars-ours.png';
+    replaceFile(path.join(wt, rel), 'shot again');
+    assert.ok(!fs.lstatSync(path.join(wt, rel)).isSymbolicLink(), 'the link is now a file');
+    assert.equal(fs.readFileSync(path.join(wt, rel), 'utf8'), 'shot again');
+    assert.equal(fs.readFileSync(path.join(main, rel), 'utf8'), 'round one');
+    assert.deepEqual(fs.readdirSync(path.dirname(path.join(wt, rel))).filter((f) => f.startsWith('.')), [], 'no temporary file is left');
+  });
+
+  ok('a clash is named by check and by sync, and sync copies only what is new', () => {
     put(wt, 'dev/shots/chrome/r2-bars-ours.png', 'round two');
-    put(wt, 'dev/shots/chrome/r1-theirs-crop.png', 'the worktree\'s');
-    put(main, 'dev/shots/chrome/r1-theirs-crop.png', 'the main checkout\'s');
+    const clashes = ['dev/shots/chrome/r1-bars-ours.png'];
+    assert.deepEqual(compare(wt).clashes, clashes);
+    assert.deepEqual(compare(wt).fresh, ['dev/shots/chrome/r2-bars-ours.png']);
     const r = sync(wt);
     assert.equal(r.copied, 1);
-    assert.deepEqual(r.held, ['dev/shots/chrome/r1-theirs-crop.png']);
+    assert.deepEqual(r.clashes, clashes);
     assert.equal(fs.readFileSync(path.join(main, 'dev/shots/chrome/r2-bars-ours.png'), 'utf8'), 'round two');
-    assert.equal(fs.readFileSync(path.join(main, 'dev/shots/chrome/r1-theirs-crop.png'), 'utf8'), 'the main checkout\'s');
+    assert.equal(fs.readFileSync(path.join(main, clashes[0]), 'utf8'), 'round one');
+  });
+
+  ok('the command line exits 1 on a clash and 0 without one', () => {
+    const cli = (...args) => spawnSync('node', [path.join(ROOT, 'tools/assets.mjs'), ...args], { encoding: 'utf8' });
+    const clashed = cli('check', wt);
+    assert.equal(clashed.status, 1);
+    assert.match(clashed.stdout, /^assets check: 1 differ from the main checkout's copy: dev\/shots\/chrome\/r1-bars-ours\.png\n$/);
+    fs.rmSync(path.join(wt, 'dev/shots/chrome/r1-bars-ours.png'));
+    const clean = cli('check', wt);
+    assert.equal(clean.status, 0, clean.stdout);
+    assert.equal(cli('sync', wt).status, 0);
   });
 
   ok('both do nothing in the main checkout', () => {

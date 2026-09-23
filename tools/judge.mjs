@@ -67,6 +67,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { replaceFile } from './assets.mjs';
 import { assertState, secondShot, validate } from './assert-state.mjs';
 import { BUDGET, ORACLE, latencyVerdict } from './bench-join.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
@@ -687,8 +688,8 @@ export async function shootState(stage, root, s, settingsFile, cut, paths, { act
     active,
   });
   if (cut) {
-    fs.writeFileSync(path.join(root, paths.ours), cropPng(fs.readFileSync(path.join(root, paths.shot)), cut.ours));
-    fs.writeFileSync(path.join(root, paths.theirs), cropPng(fs.readFileSync(path.join(root, cut.capture)), cut.crop));
+    replaceFile(path.join(root, paths.ours), cropPng(fs.readFileSync(path.join(root, paths.shot)), cut.ours));
+    replaceFile(path.join(root, paths.theirs), cropPng(fs.readFileSync(path.join(root, cut.capture)), cut.crop));
   }
   return { ours: paths.ours, theirs: paths.theirs };
 }

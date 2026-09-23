@@ -29,6 +29,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { replaceFile } from './assets.mjs';
 import { typeKeys } from './bench.mjs';
 import { activeWindow, compositorAvailable, openStage, quillArgv } from './harness.mjs';
 import {
@@ -288,7 +289,7 @@ async function runScript(root, stage, script, { shotsDir }) {
       }
       if (shotsDir) {
         fs.mkdirSync(shotsDir, { recursive: true });
-        fs.writeFileSync(path.join(shotsDir, `${burst.name}.png`), shot.buf);
+        replaceFile(path.join(shotsDir, `${burst.name}.png`), shot.buf);
         say(`gate keys: wrote ${path.join(shotsDir, `${burst.name}.png`)}`);
       }
       seen.push({ burst, shot, settle });

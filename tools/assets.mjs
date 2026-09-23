@@ -1,6 +1,7 @@
 // The judging evidence that lives beside the repository rather than in it.
 //
 //   node tools/assets.mjs link [<worktree>]
+//   node tools/assets.mjs check <worktree>
 //   node tools/assets.mjs sync <worktree>
 //
 // Round shots, the Design oracle's full captures, iA's stills and the diagnostics
@@ -17,7 +18,17 @@
 // the links, is copied into the main checkout, and `tools/land` runs it before the
 // worktree is removed. A file the main checkout already holds is never overwritten.
 //
-// Each ends in one line: `assets link: ...` or `assets sync: ...`.
+// A **clash** is a file the worktree wrote whose name the main checkout already
+// holds with other bytes: two worktrees judging one Piece both write `r12`, or a
+// round is shot again. Neither copy can win silently, because a round's verdict is
+// carried by the bytes its shots hold (judge.mjs `carriedFrom`), so `check` names
+// the clashes and exits 1, `tools/land` refuses on it before the merge, and `sync`
+// exits 1 on one rather than leave it to `git worktree remove --force`. A tool
+// writing evidence goes through `replaceFile`, which renames a finished file over
+// the path: a link is replaced rather than written through, so a worktree's shot
+// stays the worktree's until it lands, and a second shot of one name is a clash.
+//
+// Each ends in one line: `assets link: ...`, `assets check: ...` or `assets sync: ...`.
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -79,44 +90,66 @@ export function link(worktree) {
   return { main, linked, here: false };
 }
 
-export function sync(worktree) {
+// Writes `data` to `file` by renaming a finished copy over it, so a symlink at
+// `file` is replaced rather than written through, and a reader never sees half a file.
+export function replaceFile(file, data) {
+  const tmp = path.join(path.dirname(file), `.${process.pid}-${path.basename(file)}`);
+  fs.writeFileSync(tmp, data);
+  fs.renameSync(tmp, file);
+}
+
+// The evidence the worktree wrote itself, sorted into what the main checkout lacks
+// (`fresh`) and what it holds with other bytes (`clashes`).
+export function compare(worktree) {
   const main = mainCheckout(worktree);
-  if (path.resolve(main) === path.resolve(worktree)) return { main, copied: 0, held: [], here: true };
-  let copied = 0;
-  const held = [];
+  if (path.resolve(main) === path.resolve(worktree)) return { main, fresh: [], clashes: [], here: true };
+  const fresh = [];
+  const clashes = [];
   for (const rel of evidence(worktree)) {
     const from = path.join(worktree, rel);
     if (fs.lstatSync(from).isSymbolicLink()) continue;
     const to = path.join(main, rel);
-    if (exists(to)) {
-      if (!fs.readFileSync(to).equals(fs.readFileSync(from))) held.push(rel);
-      continue;
-    }
-    fs.mkdirSync(path.dirname(to), { recursive: true });
-    fs.copyFileSync(from, to);
-    copied++;
+    if (!exists(to)) fresh.push(rel);
+    else if (!fs.readFileSync(to).equals(fs.readFileSync(from))) clashes.push(rel);
   }
-  return { main, copied, held, here: false };
+  return { main, fresh, clashes, here: false };
 }
+
+export function sync(worktree) {
+  const r = compare(worktree);
+  for (const rel of r.fresh) {
+    const to = path.join(r.main, rel);
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.copyFileSync(path.join(worktree, rel), to);
+  }
+  return { ...r, copied: r.fresh.length };
+}
+
+const HERE = 'the main checkout holds the evidence itself';
+const clashLine = (r) => `${r.clashes.length} differ from the main checkout's copy: ${r.clashes.join(', ')}`;
 
 function main(argv) {
   const [cmd, dir] = argv;
   if (cmd === 'link') {
     const r = link(path.resolve(dir ?? process.cwd()));
-    console.log(r.here ? 'assets link: the main checkout holds the evidence itself' : `assets link: ${r.linked} linked from ${r.main}`);
+    console.log(r.here ? `assets link: ${HERE}` : `assets link: ${r.linked} linked from ${r.main}`);
     return 0;
+  }
+  if (cmd === 'check' && dir) {
+    const r = compare(path.resolve(dir));
+    if (r.here) console.log(`assets check: ${HERE}`);
+    else if (r.clashes.length) console.log(`assets check: ${clashLine(r)}`);
+    else console.log(`assets check: no clash, ${r.fresh.length} new to copy into ${r.main}`);
+    return r.clashes.length ? 1 : 0;
   }
   if (cmd === 'sync' && dir) {
     const r = sync(path.resolve(dir));
-    if (r.here) {
-      console.log('assets sync: the main checkout holds the evidence itself');
-      return 0;
-    }
-    const kept = r.held.length ? `; ${r.held.length} differ from the main checkout's and were left: ${r.held.join(', ')}` : '';
-    console.log(`assets sync: ${r.copied} copied into ${r.main}${kept}`);
-    return 0;
+    if (r.here) console.log(`assets sync: ${HERE}`);
+    else if (r.clashes.length) console.log(`assets sync: ${r.copied} copied into ${r.main}; ${clashLine(r)}`);
+    else console.log(`assets sync: ${r.copied} copied into ${r.main}`);
+    return r.clashes.length ? 1 : 0;
   }
-  console.error('usage: node tools/assets.mjs link [<worktree>] | sync <worktree>');
+  console.error('usage: node tools/assets.mjs link [<worktree>] | check <worktree> | sync <worktree>');
   return 2;
 }
 

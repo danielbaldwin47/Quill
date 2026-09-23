@@ -35,8 +35,10 @@ usage: tools/land <PR> <ticket> [--dry-run]
   Commit tier there, clears the branch away, and posts what the session cost on
   the ticket. Each step prints one line.
 
-    check     `gh pr view <PR>` — open, MERGEABLE, CLEAN and against main, or
-              the tool refuses before touching anything.
+    check     `gh pr view <PR>` — open, MERGEABLE, CLEAN and against main — and
+              `node tools/assets.mjs check` on the PR's worktree — no shot it
+              wrote clashes with the main checkout's — or the tool refuses
+              before touching anything.
     merge     `gh pr merge <PR> --merge --delete-branch`; the PR body's
               `Closes #N` closes the ticket.
     pull      `git pull --ff-only` in the main checkout.
@@ -129,6 +131,16 @@ if [ "$STATE" != OPEN ]; then refuse "PR #${PR} is ${STATE}"; fi
 if [ "$BASE" != main ]; then refuse "PR #${PR} is against ${BASE}, not main"; fi
 if [ "$MERGEABLE" != MERGEABLE ]; then refuse "PR #${PR} is ${MERGEABLE}"; fi
 if [ "$MERGESTATE" != CLEAN ]; then refuse "PR #${PR} is ${MERGESTATE}, not CLEAN"; fi
+# The worktree holding the PR's branch, if the landing session made one. A shot
+# it wrote under a name the main checkout already holds with other bytes is a
+# clash (tools/assets.mjs): the removal below would discard one of the two, and a
+# verdict carried by those bytes would then name the wrong pixels, so the land is
+# refused before the merge, with the paths, for the owner to settle.
+WT=$(git -C "$MAIN" worktree list --porcelain |
+    awk -v b="branch refs/heads/${HEAD}" '/^worktree /{p=$2} $0==b{print p; exit}')
+if [ -n "$WT" ] && [ "$WT" != "$MAIN" ]; then
+    CLASH=$(node "$MAIN/tools/assets.mjs" check "$WT") || refuse "${CLASH#assets check: }"
+fi
 say check "PR #${PR} ${HEAD} -> ${BASE}, ${MERGEABLE}, ${MERGESTATE}"
 
 # merge — the PR body's `Closes #<ticket>` is what closes the ticket.
@@ -162,11 +174,9 @@ else
     fi
 fi
 
-# worktree — the one holding the PR's branch, if the landing session made one.
+# worktree — the one the check step found.
 # --force is the point: a bench run leaves untracked dev/shots/latency/bench-*.json
 # behind and a plain remove refuses on them, so the line names what goes.
-WT=$(git -C "$MAIN" worktree list --porcelain |
-    awk -v b="branch refs/heads/${HEAD}" '/^worktree /{p=$2} $0==b{print p; exit}')
 if [ -z "$WT" ]; then
     say worktree "no worktree holds ${HEAD}"
 elif [ "$WT" = "$MAIN" ]; then
@@ -175,6 +185,7 @@ else
     DIRT=$(git -C "$WT" status --porcelain | cut -c4- | paste -sd'|' - | sed 's/|/, /g')
     # The shots a judge wrote in the worktree are ignored by git and would go with
     # it; they are the evidence the next round carries from (tools/assets.mjs).
+    # `sync` exits 1 on a clash made since the check step, and the worktree stays.
     if ! run node "$MAIN/tools/assets.mjs" sync "$WT"; then fail worktree; fi
     if ! run git -C "$MAIN" worktree remove --force "$WT"; then fail worktree; fi
     if [ "$DRY" = 1 ]; then
