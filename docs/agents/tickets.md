@@ -33,7 +33,7 @@ follows a row not yet written is not one of the spec's states until the capture 
 `/to-tickets` sizes every ticket for one `/implement` session. Each ticket carries a **Size** line
 and a **Reading** line naming the spec sections and ADRs the session needs by heading — and, for a
 ticket touching the writing surface, the `docs/design.md` row it builds to — and what it can skip
-(the parent spec whole, `dev/legacy/`).
+(the parent spec whole).
 
 **The Size line quotes a landed shape, not a constant.** A ticket's estimate has run about 3× over:
 the Markup children sized at 50–65 tool calls landed at 122–247 calls and 165k–302k peak (#86–#91,

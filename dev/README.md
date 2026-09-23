@@ -3,14 +3,13 @@
 What Quill is judged against, and the evidence of the judging. None of it ships in the package.
 
 Quill began as a JavaScript app, built Piece by Piece and judged blind against iA Writer's own
-screenshots until a harsh critic picked it for every Piece. That app is `dev/legacy/`, and it is now
-the **Parity oracle**: the native GTK4 app is ported Piece by Piece, and each Piece is judged blind
-before it lands (`docs/agents/gate.md`) — against the Parity oracle, or where `docs/design.md` says
+screenshots until a harsh critic picked it for every Piece. That app became the **Parity oracle**:
+the native GTK4 app was ported Piece by Piece, and each Piece is judged blind before it lands
+(`docs/agents/gate.md`) — against the Parity oracle's frozen shots, or where `docs/design.md` says
 so against the **Design oracle**, iA Writer for Mac as measured in `dev/ref/ia/mac-native/`.
 `docs/architecture.md` is the native design; `CONTEXT.md` is the vocabulary.
 
 ```
-dev/legacy/         the JavaScript app as it won, and the Parity oracle (bin/quill, app/, tools/, BRIEF.md, NOTES.md)
 dev/ref/ia/         iA Writer reference: screenshots, fonts, templates, spec sheet, sources
                     mac-native/  the Design oracle as measured; its captures are under dev/ref/ia/shots/mac-native/
 dev/ref/sample.md   the shared test passage;  dev/ref/short.md  the one that fits in a window
@@ -20,10 +19,9 @@ dev/progress/       state, per-round verdicts, latency report, generated live pa
 dev/shots/          every round's screenshots, blind pairs, and the states the oracle is shot at
 ```
 
-Paths inside `dev/legacy/app/`, `dev/legacy/tools/shoot.mjs` and
-`dev/shots/oracle/library/manifest.json` still name `ref/…` and `shots/…` at the root, from before
-these folders moved under `dev/`: every frozen oracle's fingerprint hashes those bytes, so they were
-left as they were.
+`dev/shots/oracle/library/manifest.json` still names `ref/…` and `shots/…` at the root, from before
+these folders moved under `dev/`: every frozen oracle's fingerprint hashes it, so it was left as it
+was.
 
 ## Building the package
 
@@ -58,13 +56,23 @@ lists under `data/style/` — resolve from one directory: `$QUILL_DATA_DIR` if i
 the package build compiled in (`/usr/share/quill`), else this checkout. Templates are compiled into
 the binary (`quill-engine/templates/`).
 
-## Run the Parity oracle
+## The Parity oracle
 
-No framework, no build step: `dev/legacy/app/index.html` + `dev/legacy/app/css/*.css` +
-`dev/legacy/app/js/*.js`, with iA Writer Duo / Quattro / Mono bundled (SIL OFL 1.1). Needs Chromium
-(`/usr/bin/chromium`) and Node ≥ 20.
+The JavaScript app left the tree once every Piece was ported; the last commit holding it is
+`37c186a`, where it is `dev/legacy/` under its own ISC licence. Its frozen shots under
+`dev/shots/oracle/<piece>/` stay the opponent: `tools/gate oracle` reads them `unchanged` while the
+states, passages and fixtures under them hold, and fails a state that moves under its shot, which
+then takes a `mac-native` crop or an `assert` (`docs/architecture.md` § Repo migration).
+
+A checkout can hold a copy again, ignored by git, and the Gate re-freezes from it as before. No
+framework, no build step: `app/index.html` + `app/css/*.css` + `app/js/*.js`, with iA Writer Duo /
+Quattro / Mono bundled (SIL OFL 1.1). Needs Chromium (`/usr/bin/chromium`) and Node ≥ 20. Its
+`app/` and `tools/shoot.mjs` name `ref/` and `shots/` at the root, from before `dev/`, and every
+frozen fingerprint hashes those bytes as they are.
 
 ```
+git archive 37c186a dev/legacy | tar -x   # from the checkout root
+echo /dev/legacy/ >> .git/info/exclude    # keep it out of git status
 (cd dev/legacy && npm i)                  # once, for its tooling (playwright-core)
 
 dev/legacy/bin/quill                      # own window, no browser chrome (starts the local server)

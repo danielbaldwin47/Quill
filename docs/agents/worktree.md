@@ -45,12 +45,10 @@ subagent's resets, so a `cd` into a subdirectory is written into the command it 
 
 ## `node_modules`
 
-`.claude/settings.json` `worktree.symlinkDirectories` links `node_modules` and `dev/legacy/node_modules`
-into every worktree `EnterWorktree` makes, which is why `git status --short` shows those two as
-untracked there. A worktree made with `git worktree add` has neither: `tools/` runs anyway, Node
-resolving `node_modules` upward to the checkout's, and `dev/legacy/node_modules` is linked before
-`tools/gate oracle` — the one subcommand that runs `dev/legacy/tools/` — with the `ln -s` its refusal
-prints.
+`.claude/settings.json` `worktree.symlinkDirectories` links `node_modules` into every worktree
+`EnterWorktree` makes, which is why `git status --short` shows it as untracked there. A worktree made
+with `git worktree add` has none: `tools/` runs anyway, Node resolving `node_modules` upward to the
+checkout's.
 
 ## Leaving one
 
