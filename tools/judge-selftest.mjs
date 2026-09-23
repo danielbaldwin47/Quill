@@ -25,7 +25,7 @@ import {
   ACCENT, ACCENT_HEX, APP_ID, DIALOG_APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv, spellFixture,
   opensSecondWindow, parseToplevels, pngSize, quillArgv, rulesLua, wantsLitCaret,
 } from './harness.mjs';
-import { VERDICT_KEYS, carriedFrom, criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag, shotPaths } from './judge.mjs';
+import { VERDICT_KEYS, carriedFrom, criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag, shotHash, shotPaths } from './judge.mjs';
 import { decodePng } from './keys-assert.mjs';
 import { readStates, resolveStates, unservable } from './oracle.mjs';
 import { regimes } from './regimes.mjs';
@@ -2064,6 +2064,28 @@ ok('a state carries the latest verdict on the same bytes, both sides, and nothin
     assert.equal(carriedFrom(root, [{ ...r3, states: [{ ...r3.states[0], pick: undefined, margin: 'asserted' }] }], 'sentence', now, theirs), null, 'an assertion is arithmetic and is run again');
     assert.equal(carriedFrom(root, [{ piece: 'focus', round: 1, winner: 'ours' }], 'sentence', now, theirs), null, 'a gauntlet round has no states to carry');
     assert.equal(carriedFrom(root, [r3], 'sentence', 'dev/shots/focus/nosuch.png', theirs), null, 'a file that is not there is not the same bytes');
+  });
+});
+
+ok('a round that recorded its hashes is carried on them, not on the file at its path', () => {
+  inTemp((root) => {
+    const write = (file, bytes) => { fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); fs.writeFileSync(path.join(root, file), bytes); return file; };
+    const theirs = write('dev/shots/oracle/focus/sentence.png', 'theirs-a');
+    const judged = write('dev/shots/focus/r3-sentence-ours.png', 'ours-a');
+    const r3 = {
+      piece: 'focus', round: 3, opponent: 'oracle', winner: 'ours',
+      states: [{ name: 'sentence', ours: judged, theirs, oursHash: shotHash(root, judged), theirsHash: shotHash(root, theirs), pick: 'A', winner: 'ours', margin: 'clear' }],
+    };
+    const now = write('dev/shots/focus/r4-sentence-ours.png', 'ours-a');
+    assert.equal(carriedFrom(root, [r3], 'sentence', now, theirs).round, 3, 'the bytes round 3 hashed');
+    // Another worktree's round 3 lands in the main checkout under the same name: the file at the
+    // path moves, the verdict does not follow it.
+    write(judged, 'ours-b');
+    assert.equal(carriedFrom(root, [r3], 'sentence', now, theirs).round, 3, 'still the bytes round 3 hashed');
+    assert.equal(carriedFrom(root, [r3], 'sentence', write('dev/shots/focus/r5-sentence-ours.png', 'ours-b'), theirs), null, 'the swapped-in bytes were never judged');
+    // A clone holds no round shots at all, and the hashes carry anyway.
+    fs.rmSync(path.join(root, judged));
+    assert.equal(carriedFrom(root, [r3], 'sentence', now, theirs).round, 3, 'a round whose shot is absent carries on its hash');
   });
 });
 

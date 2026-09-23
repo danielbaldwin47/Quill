@@ -56,6 +56,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { replaceFile } from './assets.mjs';
 import { overlaid } from './crop.mjs';
 import { decodePng } from './keys-assert.mjs';
 
@@ -1153,7 +1154,7 @@ class Stage {
         throw new Error(`the window was captured at ${size.w}x${size.h}, not the ${want.w}x${want.h} this state is judged at`);
       }
       fs.mkdirSync(path.dirname(out), { recursive: true });
-      fs.writeFileSync(out, png);
+      replaceFile(out, png);
       return crypto.createHash('sha256').update(png).digest('hex');
     } finally {
       this.kill(ours?.child);

@@ -131,9 +131,10 @@ a `mac-native` opponent is the stage's, not the Piece's, the way `spell` lost ro
 pairs each shot with the opponent's through `tools/blind.mjs`, runs one fresh-context critic per pair (`tools/critic.md`,
 the gauntlet's critic prompt, Opus at high effort) — every state shot first, then every critic at
 once — reveals, and writes `dev/progress/rounds/<piece>-r<N>.json` in the existing shape plus
-`opponent`, `build` (the commit and the binary's hash) and `states` (each state's shots, pick,
-margin and gaps). **The same pixels are not judged twice**: a state whose shot of ours and whose
-opponent are byte for byte what an earlier round's critic was shown carries that round's verdict
+`opponent`, `build` (the commit and the binary's hash) and `states` (each state's shots and their
+hashes, pick, margin and gaps). **The same pixels are not judged twice**: a state whose shot of ours
+and whose opponent hash to what an earlier round's critic was shown (a round from before the hashes
+is compared with its files) carries that round's verdict
 forward — the latest such round — marked `carried` with the round it came from, and spends no
 critic; `--fresh` asks a critic about every state anyway, which is how the owner re-rolls a verdict
 that looks wrong. `tools/gate shoot <piece>` takes the same shots with no critic, into

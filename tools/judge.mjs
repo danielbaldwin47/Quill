@@ -34,8 +34,8 @@
 // minutes) and takes one critic's worth this way; it also means a rebuild of the binary can only
 // corrupt a run during the minute the shots take, not the quarter-hour after.
 //
-// THE SAME PIXELS ARE NOT JUDGED TWICE. A state whose shot of ours and whose opponent are, byte for
-// byte, what an earlier round's critic was shown carries that round's verdict forward — the latest
+// THE SAME PIXELS ARE NOT JUDGED TWICE. A state whose shot of ours and whose opponent hash to what
+// an earlier round's critic was shown (`carriedFrom`) carries that round's verdict forward — the latest
 // such round, whatever was judged in between — marked `carried`. Forty-three of the hundred-odd blind verdicts on disk by 2026-09-01 were on pixels
 // identical to the round before — every focus round from r3 to r5, most of markup r4 to r9 — and
 // one of them (caret r10) turned a won state into a lost one on no new evidence. `--fresh` asks
@@ -67,6 +67,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { replaceFile } from './assets.mjs';
 import { assertState, secondShot, validate } from './assert-state.mjs';
 import { BUDGET, ORACLE, latencyVerdict } from './bench-join.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
@@ -123,8 +124,11 @@ const BUILD_OUTPUT_MAX = 32 * 1024 * 1024;
 // `fingerprint.mjs`, which is where "which build is this?" is answered for the shots on the other
 // side of the pair too.
 export function build(root) {
-  return { git: gitHead(root), binary: sha256(fs.readFileSync(path.join(root, BINARY))).slice(0, 16) };
+  return { git: gitHead(root), binary: shortHash(fs.readFileSync(path.join(root, BINARY))) };
 }
+
+// Bytes as a round file records them: the first 16 hex of their sha256.
+const shortHash = (bytes) => sha256(bytes).slice(0, 16);
 
 // ---------- the command line ours is opened with ----------
 
@@ -687,8 +691,8 @@ export async function shootState(stage, root, s, settingsFile, cut, paths, { act
     active,
   });
   if (cut) {
-    fs.writeFileSync(path.join(root, paths.ours), cropPng(fs.readFileSync(path.join(root, paths.shot)), cut.ours));
-    fs.writeFileSync(path.join(root, paths.theirs), cropPng(fs.readFileSync(path.join(root, cut.capture)), cut.crop));
+    replaceFile(path.join(root, paths.ours), cropPng(fs.readFileSync(path.join(root, paths.shot)), cut.ours));
+    replaceFile(path.join(root, paths.theirs), cropPng(fs.readFileSync(path.join(root, cut.capture)), cut.crop));
   }
   return { ours: paths.ours, theirs: paths.theirs };
 }
@@ -697,21 +701,31 @@ export async function shootState(stage, root, s, settingsFile, cut, paths, { act
 // copies from the round it carries, everything but the paths that name this round's own files.
 export const VERDICT_KEYS = ['blind', 'oursWas', 'pick', 'winner', 'margin', 'sameViewport', 'gap', 'gapTheirs', 'verdict', 'secondary'];
 
+// A shot's `shortHash`, or null when the file is not there.
+export function shotHash(root, file) {
+  try {
+    return shortHash(fs.readFileSync(path.join(root, file)));
+  } catch {
+    return null;
+  }
+}
+
 // The latest round whose verdict on this state still stands, or null: the one that put a critic on
-// the same bytes, ours and the opponent's both, that are about to be paired now. Read off the files
-// the round names rather than a hash it recorded, because the shots are committed and a hash would
-// be one more thing to keep true. A state a round answered by assertion carries no `pick` and is
-// never carried: an assertion is arithmetic and costs nothing to run again. A verdict that was
-// itself carried names the round it came from, so a chain of identical rounds points at the one
-// critic who looked.
+// the same bytes, ours and the opponent's both, that are about to be paired now. Read off the
+// hashes the round recorded (`oursHash`, `theirsHash`), because the shots are evidence outside git
+// (dev/README.md § Judging evidence): the file at a round's path can be another worktree's shot of
+// the same name, or absent from a clone. A round from before the hashes is read off the files it
+// names. A state a round answered by assertion carries no `pick` and is never carried: an
+// assertion is arithmetic and costs nothing to run again. A verdict that was itself carried names
+// the round it came from, so a chain of identical rounds points at the one critic who looked.
 export function carriedFrom(root, recorded, name, oursFile, theirsFile) {
-  const same = (a, b) => {
-    try { return fs.readFileSync(path.join(root, a)).equals(fs.readFileSync(path.join(root, b))); } catch { return false; }
-  };
+  const now = { ours: shotHash(root, oursFile), theirs: shotHash(root, theirsFile) };
+  if (!now.ours || !now.theirs) return null;
+  const same = (hash, file, want) => (hash ?? shotHash(root, file)) === want;
   for (const r of [...recorded].reverse()) {
     const s = (r.states || []).find((x) => x.name === name);
     if (!s || !s.pick || !s.ours || !s.theirs) continue;
-    if (!same(s.ours, oursFile) || !same(s.theirs, theirsFile)) continue;
+    if (!same(s.oursHash, s.ours, now.ours) || !same(s.theirsHash, s.theirs, now.theirs)) continue;
     return { round: s.carried ?? r.round, state: s };
   }
   return null;
@@ -810,6 +824,9 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
         name: s.name,
         ours,
         theirs,
+        // What a later round carries this verdict on (`carriedFrom`).
+        oursHash: shotHash(root, ours),
+        theirsHash: shotHash(root, theirs),
         // Which capture the crop came out of and both rectangles, so a round says what a critic
         // was shown without anyone having to re-derive it from states.json as it reads today.
         ...(cut ? { opponent: { capture: cut.capture, crop: cut.crop, ours: cut.ours }, oursWhole: paths.shot } : {}),

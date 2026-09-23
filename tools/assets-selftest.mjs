@@ -9,16 +9,17 @@
 // ignored for its own reason and is not evidence, so none is probed) — so a pattern
 // added to one and not the other goes red here. And on a scratch repository with
 // this .gitignore, a worktree gets a link to each piece of evidence it lacks and
-// nothing over a file it has, and `sync` copies back what the worktree wrote itself,
-// leaves the links, and never overwrites the main checkout's copy. No window.
+// nothing over a file it has; a shot written over a link replaces the link, not the
+// main checkout's file; and `sync` copies back only what the main checkout lacks and
+// names a clash on its line. No window.
 
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isEvidence, link, sync } from './assets.mjs';
+import { isEvidence, link, replaceFile, sync, unsynced } from './assets.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -108,15 +109,37 @@ try {
     assert.equal(link(wt).linked, 0, 'a second link finds nothing to do');
   });
 
-  ok('sync copies what the worktree wrote, and nothing else', () => {
+  ok('replaceFile over a link replaces the link and leaves the main checkout\'s file', () => {
+    const rel = 'dev/shots/chrome/r1-bars-ours.png';
+    replaceFile(path.join(wt, rel), 'shot again');
+    assert.ok(!fs.lstatSync(path.join(wt, rel)).isSymbolicLink(), 'the link is now a file');
+    assert.equal(fs.readFileSync(path.join(wt, rel), 'utf8'), 'shot again');
+    assert.equal(fs.readFileSync(path.join(main, rel), 'utf8'), 'round one');
+    const dir = path.dirname(path.join(wt, rel));
+    assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp')), [], 'no temporary file is left');
+  });
+
+  ok('a replaceFile that fails leaves no temporary file behind', () => {
+    const dir = path.join(wt, 'dev/shots/chrome/a-directory.png');
+    fs.mkdirSync(path.join(dir, 'inside'), { recursive: true });
+    assert.throws(() => replaceFile(dir, 'bytes'), 'renaming a file over a directory that is not empty fails');
+    assert.deepEqual(fs.readdirSync(path.dirname(dir)).filter((f) => f.endsWith('.tmp')), []);
+    assert.ok(!isEvidence(`${path.relative(wt, dir)}.${process.pid}.tmp`), 'and one a crash left would not be evidence');
+    fs.rmSync(dir, { recursive: true });
+  });
+
+  ok('sync copies only what is new, and names a clash on its line', () => {
     put(wt, 'dev/shots/chrome/r2-bars-ours.png', 'round two');
-    put(wt, 'dev/shots/chrome/r1-theirs-crop.png', 'the worktree\'s');
-    put(main, 'dev/shots/chrome/r1-theirs-crop.png', 'the main checkout\'s');
-    const r = sync(wt);
-    assert.equal(r.copied, 1);
-    assert.deepEqual(r.held, ['dev/shots/chrome/r1-theirs-crop.png']);
+    const clash = 'dev/shots/chrome/r1-bars-ours.png';
+    const { fresh, clashes } = unsynced(wt);
+    assert.deepEqual(clashes, [clash]);
+    assert.deepEqual(fresh, ['dev/shots/chrome/r2-bars-ours.png']);
+    const run = spawnSync('node', [path.join(ROOT, 'tools/assets.mjs'), 'sync', wt], { encoding: 'utf8' });
+    assert.equal(run.status, 0);
+    assert.ok(run.stdout.startsWith(`assets sync: ${fresh.length} copied`), run.stdout);
+    assert.ok(run.stdout.trimEnd().endsWith(clash), `the line does not name the clash: ${run.stdout}`);
     assert.equal(fs.readFileSync(path.join(main, 'dev/shots/chrome/r2-bars-ours.png'), 'utf8'), 'round two');
-    assert.equal(fs.readFileSync(path.join(main, 'dev/shots/chrome/r1-theirs-crop.png'), 'utf8'), 'the main checkout\'s');
+    assert.equal(fs.readFileSync(path.join(main, clash), 'utf8'), 'round one', 'the main checkout keeps its own');
   });
 
   ok('both do nothing in the main checkout', () => {

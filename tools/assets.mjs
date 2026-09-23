@@ -17,6 +17,15 @@
 // the links, is copied into the main checkout, and `tools/land` runs it before the
 // worktree is removed. A file the main checkout already holds is never overwritten.
 //
+// A tool writing evidence goes through `replaceFile`, which renames a finished file
+// over the path: a link is replaced rather than written through, so a worktree's
+// shot stays the worktree's until it lands. A **clash** is a file the worktree
+// wrote whose name the main checkout already holds with other bytes — two worktrees
+// judging one Piece both wrote `r12` — and `sync` names it and leaves the main
+// checkout's copy. Neither copy can mislead a later round: a verdict is carried on
+// the hashes its round recorded, not on whatever file sits at the path
+// (judge.mjs `carriedFrom`).
+//
 // Each ends in one line: `assets link: ...` or `assets sync: ...`.
 
 import { execFileSync } from 'node:child_process';
@@ -79,41 +88,61 @@ export function link(worktree) {
   return { main, linked, here: false };
 }
 
-export function sync(worktree) {
+// Writes `data` to `file` by renaming a finished copy over it, so a symlink at
+// `file` is replaced rather than written through, and a reader never sees half a file.
+// The temporary name is not evidence, so one a crash leaves behind shows in `git
+// status` rather than being copied into the main checkout by `sync`.
+export function replaceFile(file, data) {
+  const tmp = `${file}.${process.pid}.tmp`;
+  try {
+    fs.writeFileSync(tmp, data);
+    fs.renameSync(tmp, file);
+  } catch (e) {
+    fs.rmSync(tmp, { force: true });
+    throw e;
+  }
+}
+
+// The evidence the worktree wrote itself, sorted into what the main checkout lacks
+// (`fresh`) and what it holds with other bytes (`clashes`).
+export function unsynced(worktree) {
   const main = mainCheckout(worktree);
-  if (path.resolve(main) === path.resolve(worktree)) return { main, copied: 0, held: [], here: true };
-  let copied = 0;
-  const held = [];
+  if (path.resolve(main) === path.resolve(worktree)) return { main, fresh: [], clashes: [], here: true };
+  const fresh = [];
+  const clashes = [];
   for (const rel of evidence(worktree)) {
     const from = path.join(worktree, rel);
     if (fs.lstatSync(from).isSymbolicLink()) continue;
     const to = path.join(main, rel);
-    if (exists(to)) {
-      if (!fs.readFileSync(to).equals(fs.readFileSync(from))) held.push(rel);
-      continue;
-    }
-    fs.mkdirSync(path.dirname(to), { recursive: true });
-    fs.copyFileSync(from, to);
-    copied++;
+    if (!exists(to)) fresh.push(rel);
+    else if (!fs.readFileSync(to).equals(fs.readFileSync(from))) clashes.push(rel);
   }
-  return { main, copied, held, here: false };
+  return { main, fresh, clashes, here: false };
 }
+
+export function sync(worktree) {
+  const r = unsynced(worktree);
+  for (const rel of r.fresh) {
+    const to = path.join(r.main, rel);
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.copyFileSync(path.join(worktree, rel), to);
+  }
+  return r;
+}
+
+const IN_MAIN = 'the main checkout holds the evidence itself';
 
 function main(argv) {
   const [cmd, dir] = argv;
   if (cmd === 'link') {
     const r = link(path.resolve(dir ?? process.cwd()));
-    console.log(r.here ? 'assets link: the main checkout holds the evidence itself' : `assets link: ${r.linked} linked from ${r.main}`);
+    console.log(r.here ? `assets link: ${IN_MAIN}` : `assets link: ${r.linked} linked from ${r.main}`);
     return 0;
   }
   if (cmd === 'sync' && dir) {
     const r = sync(path.resolve(dir));
-    if (r.here) {
-      console.log('assets sync: the main checkout holds the evidence itself');
-      return 0;
-    }
-    const kept = r.held.length ? `; ${r.held.length} differ from the main checkout's and were left: ${r.held.join(', ')}` : '';
-    console.log(`assets sync: ${r.copied} copied into ${r.main}${kept}`);
+    const left = r.clashes.length ? `; ${r.clashes.length} left, the main checkout holding other bytes: ${r.clashes.join(', ')}` : '';
+    console.log(r.here ? `assets sync: ${IN_MAIN}` : `assets sync: ${r.fresh.length} copied into ${r.main}${left}`);
     return 0;
   }
   console.error('usage: node tools/assets.mjs link [<worktree>] | sync <worktree>');

@@ -174,8 +174,17 @@ elif [ "$WT" = "$MAIN" ]; then
 else
     DIRT=$(git -C "$WT" status --porcelain | cut -c4- | paste -sd'|' - | sed 's/|/, /g')
     # The shots a judge wrote in the worktree are ignored by git and would go with
-    # it; they are the evidence the next round carries from (tools/assets.mjs).
-    if ! run node "$MAIN/tools/assets.mjs" sync "$WT"; then fail worktree; fi
+    # it, so they are copied into the main checkout first (tools/assets.mjs). Its
+    # line is printed, not trailed: a shot the main checkout holds with other bytes
+    # stays the main checkout's, and the owner sees which went with the worktree.
+    if [ "$DRY" = 1 ]; then
+        run node "$MAIN/tools/assets.mjs" sync "$WT"
+    else
+        mkdir -p "$(dirname "$TRAIL")"
+        SYNC=$(node "$MAIN/tools/assets.mjs" sync "$WT" 2>>"$TRAIL") || fail worktree
+        printf '%s\n' "$SYNC" >>"$TRAIL"
+        say worktree "${SYNC#assets }"
+    fi
     if ! run git -C "$MAIN" worktree remove --force "$WT"; then fail worktree; fi
     if [ "$DRY" = 1 ]; then
         say worktree "would remove ${WT} with --force, discarding ${DIRT:-nothing}"
