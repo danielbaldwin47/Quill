@@ -42,34 +42,46 @@ try {
   };
   const theirs = write('dev/shots/oracle/focus/sentence.png', 'theirs');
   const state = (name, ours, extra = {}) => ({ name, ours, theirs, pick: 'A', winner: 'ours', ...extra });
-  const hashed = (name, ours) => state(name, ours, { oursHash: shotHash(root, ours), theirsHash: shotHash(root, theirs) });
+  const hashed = (name, ours, their = theirs) =>
+    state(name, ours, { theirs: their, oursHash: shotHash(root, ours), theirsHash: shotHash(root, their) });
   const round = (n, states) => ({ piece: 'focus', round: n, opponent: 'oracle', states });
+  // What judge.mjs records for a state answered by assertion: no opponent's file and no pick.
+  const asserted = (name, ours) => ({ name, ours, theirs: null, winner: 'ours', margin: 'asserted' });
 
   const kept = write('dev/shots/focus/r1-kept-ours.png', 'kept');
   const swapped = write('dev/shots/focus/r1-swapped-ours.png', 'judged');
   const gone = write('dev/shots/focus/r1-gone-ours.png', 'gone');
+  const crop = write('dev/shots/focus/r1-cropped-theirs-crop.png', 'cropped');
   const old = write('dev/shots/focus/r1-old-ours.png', 'old');
+  const oldGone = write('dev/shots/focus/r1-old-gone-ours.png', 'old gone');
   const r1 = round(1, [
     hashed('kept', kept),
     hashed('swapped', swapped),
     hashed('gone', gone),
+    hashed('cropped', kept, crop),
     state('old', old),
-    state('asserted', kept, { pick: undefined, margin: 'asserted' }),
+    state('old-gone', oldGone),
+    asserted('asserted', kept),
   ]);
   const r2 = round(2, [state('kept', kept, { carried: 1 }), hashed('fresh', write('dev/shots/focus/r2-fresh-ours.png', 'fresh'))]);
   write(swapped, 'another worktree');
+  write(crop, 'another worktree');
   fs.rmSync(path.join(root, gone));
+  fs.rmSync(path.join(root, oldGone));
   const names = (recorded, count) => replayable(root, recorded, count).tasks.map((t) => `r${t.round} ${t.state.name}`);
 
-  ok('a hashed pair is replayed only while its files hold the bytes the round hashed', () => {
+  ok('a hashed pair is replayed only while both its files hold the bytes the round hashed', () => {
     const got = names([r1], 1);
     assert.ok(got.includes('r1 kept'), got.join(', '));
-    assert.ok(!got.includes('r1 swapped'), 'a file swapped under the round is not the pair its critic saw');
+    assert.ok(!got.includes('r1 swapped'), 'ours swapped under the round is not the pair its critic saw');
+    assert.ok(!got.includes('r1 cropped'), 'nor is the opponent\'s crop swapped under it');
     assert.ok(!got.includes('r1 gone'), 'a file that is not there cannot be replayed');
   });
 
   ok('a round from before the hashes is read off its files, as before', () => {
-    assert.ok(names([r1], 1).includes('r1 old'));
+    const got = names([r1], 1);
+    assert.ok(got.includes('r1 old'), got.join(', '));
+    assert.ok(!got.includes('r1 old-gone'), 'and skipped when a file is not there');
   });
 
   ok('carried and asserted states are not replayed', () => {
