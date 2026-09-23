@@ -908,12 +908,12 @@ impl Sidebar {
         // grows with that part, so the page is given a narrower window, and
         // recentres, on every frame of the slide. It eases out cubic over
         // [`MOTION_MS`], turns back from where it stands, and does not move
-        // while the window is unmapped or GTK's animations are off
-        // ([`animated`]), so a window opening with the pane, a harness shot
-        // and a desktop asking for no motion all have it at rest.
+        // while the window is unmapped or `gtk-enable-animations` is off,
+        // which it reads for itself, so a window opening with the pane, a
+        // harness shot and a desktop asking for no motion all have it at rest.
         let frame = gtk::Revealer::builder()
             .transition_type(gtk::RevealerTransitionType::SlideRight)
-            .transition_duration(u32::try_from(MOTION_MS).unwrap_or(0))
+            .transition_duration(MOTION_MS)
             .reveal_child(false)
             .child(&overlay)
             .hexpand(false)
@@ -1239,7 +1239,13 @@ impl Sidebar {
 
     /// Slides the pane in or out (#485). The page keeps its own centring and
     /// is simply given a narrower window, as the oracle's is.
+    ///
+    /// A pane sliding out takes neither the pointer nor the keyboard, so a
+    /// click in its last quarter second cannot leave the keyboard in a pane
+    /// that is about to be gone.
     pub fn set_shown(&self, shown: bool) {
+        self.frame.set_can_target(shown);
+        self.frame.set_can_focus(shown);
         self.frame.set_reveal_child(shown);
     }
 
@@ -4321,9 +4327,10 @@ fn document_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
 
 /// How long the pane takes to slide in or out (#485), and a pin to go in or
 /// come out (#441 § The pinned icon and its animation): the oracle's `.24s`
-/// (`files.css` at `37c186a`, `#library` and `#app`: `transition: .24s
-/// cubic-bezier(.22, .61, .36, 1)`), eased out as [`eased`] is.
-const MOTION_MS: i64 = 240;
+/// (`dev/legacy/app/css/files.css` at `37c186a`, `#library` and `#app`:
+/// `transition: .24s cubic-bezier(.22, .61, .36, 1)`). Both motions ease out
+/// cubic: the pin through [`eased`], the pane through GTK's Revealer.
+const MOTION_MS: u32 = 240;
 /// How far back along its path a pin starts from, in the page icon's own
 /// units: far enough that it comes in from outside the icon's cell.
 const PIN_TRAVEL: f64 = 6.0;
@@ -4383,11 +4390,9 @@ fn approach(gesture: Gesture) -> (f64, f64) {
 
 /// How far along its [`MOTION_MS`] a pin is `elapsed` microseconds in, eased
 /// out (cubic): 0 at the start, and 1 from the end on. The oracle's curve,
-/// `cubic-bezier(.22, .61, .36, 1)`, is an ease-out close to this one, and
-/// the pane's slide takes this same curve from GTK's Revealer, whose slide
-/// eases out cubic.
+/// `cubic-bezier(.22, .61, .36, 1)`, is an ease-out close to this one.
 fn eased(elapsed: i64) -> f64 {
-    let t = (elapsed as f64 / (MOTION_MS * 1000) as f64).clamp(0.0, 1.0);
+    let t = (elapsed as f64 / (i64::from(MOTION_MS) * 1000) as f64).clamp(0.0, 1.0);
     1.0 - (1.0 - t).powi(3)
 }
 
@@ -5095,8 +5100,8 @@ mod tests {
         );
         assert!(eased(0).abs() < f64::EPSILON);
         assert!(eased(60_000) > 0.25, "eased out: most of the way early");
-        assert!((eased(MOTION_MS * 1000) - 1.0).abs() < f64::EPSILON);
-        assert!((eased(MOTION_MS * 2000) - 1.0).abs() < f64::EPSILON);
+        assert!((eased(i64::from(MOTION_MS) * 1000) - 1.0).abs() < f64::EPSILON);
+        assert!((eased(i64::from(MOTION_MS) * 2000) - 1.0).abs() < f64::EPSILON);
     }
 
     /// What the File List shows holds while the Library holds it, and falls
