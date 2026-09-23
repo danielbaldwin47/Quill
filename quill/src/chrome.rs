@@ -51,6 +51,7 @@ use quill_engine::theme::{Role, Scheme};
 
 use crate::ground::Ground;
 use crate::session::{Session, StyleToggle, SyntaxToggle, TemplateToggle};
+use crate::sidebar;
 use crate::window::Window;
 
 pub mod typing;
@@ -658,10 +659,9 @@ pub const BOTTOM_HEIGHT: i32 = 26;
 /// A bar's side padding (`.chrome .bar { padding: 0 10px }`), which is where
 /// the View button's right edge stands.
 const BAR_PAD: i32 = 10;
-/// Where the Library toggle's left edge stands: `.lib-toggle { left: 8px }`,
-/// pinned rather than padded so the title stays centred on the window, plus
-/// the two pixels the frozen `bars` shot puts its icon right of that.
-const LIBRARY_LEFT: i32 = 10;
+/// The Library toggle's class, which gives it the box of the toggle that
+/// shuts the pane rather than a bar button's padding.
+const LIBRARY_CLASS: &str = "chrome-library";
 /// A padding or a margin, as CSS writes a pair: vertical then horizontal.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Pad {
@@ -1003,6 +1003,7 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 padding: {pad_y}px {pad_x}px; border-radius: {BUTTON_RADIUS}px;\n\
          \x20 color: {fg};\n\
          }}\n\
+         .chrome button.{LIBRARY_CLASS} {{ padding: 0; }}\n\
          .chrome button:hover {{ background-color: {hit}; }}\n\
          .chrome button:active, .chrome button.open {{ background-color: {hit}; color: {strong}; }}\n\
          .chrome label.chrome-title {{\n\
@@ -1123,8 +1124,17 @@ impl Bars {
         let focus = Rc::new(Cell::new(Focus::Off));
         let ground = Rc::new(Cell::new(Ground::default()));
 
-        let library = button(&[], icon(15, 15, library_icon), Some("win.library.toggle"));
-        library.set_margin_start(LIBRARY_LEFT);
+        // Where the toggle that shuts the pane stands and as big, pinned
+        // rather than padded so the title stays centred on the window: the
+        // mark does not move as the one toggle hands over to the other
+        // (#485).
+        let library = button(
+            &[LIBRARY_CLASS],
+            icon(15, 15, library_icon),
+            Some("win.library.toggle"),
+        );
+        library.set_margin_start(sidebar::HEAD_LEFT);
+        library.set_size_request(sidebar::BUTTON, sidebar::BUTTON);
 
         let title = gtk::Label::builder()
             .css_classes(["chrome-title"])
