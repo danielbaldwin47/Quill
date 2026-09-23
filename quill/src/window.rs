@@ -292,7 +292,20 @@ mod imp {
             let beside = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             beside.append(self.sidebar.widget());
             beside.append(&column);
-            window.set_child(Some(&beside));
+            // The toggle that shuts the Library stands over the pane rather
+            // than sliding with it, and the title bar's toggle stands in for
+            // it only once none of the pane is left on screen: whichever one
+            // was pressed stays under the pointer through the slide (#485).
+            let stage = gtk::Overlay::new();
+            stage.set_child(Some(&beside));
+            stage.add_overlay(self.sidebar.toggle());
+            let weak = window.downgrade();
+            self.sidebar.connect_on_screen(move |on_screen| {
+                if let Some(window) = weak.upgrade() {
+                    window.imp().bars.set_library_toggle_shown(!on_screen);
+                }
+            });
+            window.set_child(Some(&stage));
             let _ = self.palette.set(Palette::new(&beside));
         }
 
@@ -2052,13 +2065,19 @@ impl Window {
         }
     }
 
-    /// Stands the Library beside the page, or takes it away.
+    /// Stands the Library beside the page, or takes it away. The title bar's
+    /// toggle follows the pane on its own
+    /// ([`crate::sidebar::Sidebar::connect_on_screen`]).
     ///
-    /// The title bar's toggle goes with it: the pane's own head carries the
-    /// one that shuts it while it is open.
+    /// A pane going away hands the keyboard to the page first if it held it:
+    /// the pane stays on screen for its slide out (#485), and no key lands in
+    /// it meanwhile.
     fn show_library(&self, shown: bool) {
-        self.imp().sidebar.set_shown(shown);
-        self.imp().bars.set_library_toggle_shown(!shown);
+        let sidebar = &self.imp().sidebar;
+        if !shown && sidebar.holds_focus() {
+            self.focus_editor();
+        }
+        sidebar.set_shown(shown);
     }
 
     /// `preview.full` and `preview.split`: the rendered page stands where
