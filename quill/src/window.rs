@@ -2056,8 +2056,16 @@ impl Window {
     ///
     /// The title bar's toggle goes with it: the pane's own head carries the
     /// one that shuts it while it is open.
+    ///
+    /// A pane going away hands the keyboard to the page first if it held it,
+    /// where GTK sent it when the pane vanished in one frame: the pane stays
+    /// on screen for its slide out (#485), and no key lands in it meanwhile.
     fn show_library(&self, shown: bool) {
-        self.imp().sidebar.set_shown(shown);
+        let sidebar = &self.imp().sidebar;
+        if !shown && sidebar.holds_focus() {
+            self.focus_editor();
+        }
+        sidebar.set_shown(shown);
         self.imp().bars.set_library_toggle_shown(!shown);
     }
 
