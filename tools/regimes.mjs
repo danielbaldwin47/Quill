@@ -136,7 +136,8 @@ export const DEFAULT_KEYS = 300;
 // compilation and first touch of the editing machinery, and no writer types only 300 keys.
 export const WARMUP_KEYS = 25;
 // The most the bench tops a warm-up up by while the app's launch work is still under way (#495),
-// in milliseconds of typing at the regime's pace. The work is over about 2.8 s after `exec`, and a
+// in milliseconds of typing at the regime's pace. The launch said `quiet` 2.65–2.68 s after `exec` in
+// every run of #495's series, and a
 // 25-key warm-up at 90 ms has typed until about 2.5 s; a launch still busy after this long is one
 // whose first measured keys would carry it, and the bench refuses it rather than wait for ever.
 export const TOP_UP_MS = 8_000;
@@ -248,8 +249,8 @@ export function formatPlan(r, keys) {
   out.push(`  preview      ${r.preview ? `open in ${r.preview}: the rendered page beside the Editor` : 'closed'}`);
   out.push(`  pauses       ${r.pauseEvery ? `every ${r.pauseEvery} keys, ${r.pauseMs || PAUSE_MS} ms` : 'none'}`);
   out.push(`  seed         ${hash32(r.name)}`);
-  out.push(`  warm-up      ${WARMUP_KEYS} letter keys, then letter-and-Backspace pairs until the app says its`);
-  out.push('               launch is settled, outside the measurement');
+  out.push(`  warm-up      ${WARMUP_KEYS} letter keys from when the app says its launch is settled, then`);
+  out.push('               letter-and-Backspace pairs until it says quiet, outside the measurement');
   out.push(`  keys         ${steps.length} steps, ${steps.reduce((a, s) => a + s.keydowns, 0)} keydowns`);
   out.push('');
   for (let i = 0; i < steps.length; i++) {

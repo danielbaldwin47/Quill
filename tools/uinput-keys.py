@@ -123,7 +123,7 @@ def resolve(plan):
 def main():
     plan = json.loads(sys.stdin.readline())   # ONE line: stdin stays open for the chunk commands
     keys, bad = resolve(plan)
-    if bad is not None: json.dump({'ok': False, 'error': 'no key for %r' % bad}, sys.stdout); return 2
+    if bad is not None: json.dump(no_key(bad), sys.stdout); return 2
     # A reused device is made and settled once and then types plan after plan: see REUSED above.
     reuse = bool(plan.get('reuse'))
     settle = plan.get('settle_ms', 1500) / 1000.0
@@ -167,7 +167,7 @@ def main():
             plan = json.loads(line)
             keys, bad = resolve(plan)
             if bad is not None:
-                print(json.dumps({'ok': False, 'error': 'no key for %r' % bad}), flush=True)
+                print(json.dumps(no_key(bad)), flush=True)
                 return 2
     finally:
         time.sleep(0.2)
@@ -176,6 +176,9 @@ def main():
     json.dump(summary(out, keys), sys.stdout)
     sys.stdout.flush()
     return 0
+
+def no_key(press):
+    return {'ok': False, 'error': 'no key for %r' % press}
 
 def summary(out, keys):
     return {'ok': True, 'n': len(out), 'requested': len(keys), 'clock': 'CLOCK_MONOTONIC',

@@ -256,9 +256,8 @@ enum Launch {
 /// [`DRAIN_EVERY`] as well, because the last of the work need not paint: the
 /// Annotators' last drain can find nothing left to tag.
 pub fn settle(window: &impl IsA<gtk::Widget>, launching: impl Fn() -> bool + 'static) {
-    let t0 = std::env::var(T0)
-        .ok()
-        .and_then(|written| written.trim().parse().ok());
+    // Quietly: `cold_start` has already said why there is none.
+    let t0 = written_t0().ok();
     let clocks = Clocks::now();
     let launching = Rc::new(launching);
     window.add_tick_callback(move |widget, clock| {
@@ -355,19 +354,26 @@ fn pointer_left_line(at_us: i64) -> String {
     format!("pointer left the window at {at_us} us")
 }
 
-/// `$QUILL_T0_NS`, in realtime nanoseconds.
+/// `$QUILL_T0_NS`, in realtime nanoseconds, saying once on stderr why there
+/// is none.
 fn t0() -> Option<i128> {
-    let Ok(written) = std::env::var(T0) else {
-        eprintln!("quill: --measure: ${T0} is not set, so there is no cold start to print");
-        return None;
-    };
-    match written.trim().parse() {
-        Ok(t0) => Some(t0),
-        Err(_) => {
-            eprintln!("quill: --measure: ${T0}: \"{written}\" is not a time in nanoseconds");
-            None
-        }
-    }
+    written_t0()
+        .map_err(|why| match why {
+            None => {
+                eprintln!("quill: --measure: ${T0} is not set, so there is no cold start to print");
+            }
+            Some(written) => {
+                eprintln!("quill: --measure: ${T0}: \"{written}\" is not a time in nanoseconds");
+            }
+        })
+        .ok()
+}
+
+/// `$QUILL_T0_NS`, in realtime nanoseconds; or `None` when it is not set, and
+/// what it says when that is not a time.
+fn written_t0() -> Result<i128, Option<String>> {
+    let written = std::env::var(T0).map_err(|_| None)?;
+    written.trim().parse().map_err(|_| Some(written))
 }
 
 /// The first frame the compositor said it presented, in monotonic microseconds.

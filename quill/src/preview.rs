@@ -198,6 +198,11 @@ impl Sheet {
         glib::Object::builder().build()
     }
 
+    /// Whether a layout is armed on the main loop and has not run yet.
+    fn laying_out(&self) -> bool {
+        self.imp().pending.get()
+    }
+
     /// The window whose Document this sheet draws.
     fn owner(&self) -> Option<Window> {
         self.imp()
@@ -604,7 +609,7 @@ impl Preview {
     /// `--measure` waits it out (#495).
     #[must_use]
     pub fn laying_out(&self) -> bool {
-        self.sheet.imp().pending.get() || self.column.laying_out()
+        self.sheet.laying_out() || self.column.laying_out()
     }
 
     /// What the pane scrolls by: what a wheel or a scrollbar over it moves,

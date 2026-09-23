@@ -52,8 +52,8 @@ import {
   openPanelStage, openStage, panelBlocked,
 } from './harness.mjs';
 import {
-  DEFAULT_KEYS, PASTE_TEXT, PAUSE_MS, TOP_UP_MS, UINPUT_PLAN, WARMUP_KEYS, hash32, regimes, scoredRegime, script,
-  topUp, uinputPlan,
+  DEFAULT_KEYS, PASTE_TEXT, PAUSE_MS, REFRESH_MS, TOP_UP_MS, UINPUT_PLAN, WARMUP_KEYS, hash32, regimes, scoredRegime,
+  script, topUp, uinputPlan,
 } from './regimes.mjs';
 
 // The binary a bench is of. Release rather than debug, for the reason a judged shot is: the Gate
@@ -259,12 +259,11 @@ export async function openInjector(root) {
   try {
     py.stdin.write(`${JSON.stringify({ ...UINPUT_PLAN, reuse: true, keys: [] })}\n`);
     // Its settle is inside this first answer, so the wait is the settle's and not a chunk's.
-    const ready = JSON.parse(await injector.out.next(CHUNK_TIMEOUT_MS + UINPUT_PLAN.settle_ms));
-    if (!ready.ready) throw new Error(`the injector would not start: ${JSON.stringify(ready)}`);
+    await started(injector.out, CHUNK_TIMEOUT_MS + UINPUT_PLAN.settle_ms);
     JSON.parse(await injector.out.next());
   } catch (e) {
     try { py.kill('SIGTERM'); } catch { /* already gone */ }
-    throw new Error(`${e.message}${said.stderr.trim() ? `\n${said.stderr.trim()}` : ''}`);
+    throw new Error(`${e.message}${stderrOf(said)}`);
   }
   return injector;
 }
@@ -285,12 +284,10 @@ export async function typeKeys(injector, plan, held, { enough = null } = {}) {
   let lost = false;
   let met = enough === null;
   let rechecks = 0;
-  const stderr = () => (said.stderr.trim() ? `\n${said.stderr.trim()}` : '');
 
   try {
     py.stdin.write(`${JSON.stringify(plan)}\n`);
-    const ready = JSON.parse(await out.next());
-    if (!ready.ready) throw new Error(`the injector would not start: ${JSON.stringify(ready)}`);
+    const ready = await started(out);
 
     let typed = 0;
     while (typed < ready.keys) {
@@ -311,9 +308,19 @@ export async function typeKeys(injector, plan, held, { enough = null } = {}) {
     return { events: wrote.events || [], device: wrote.device, lost, met, rechecks };
   } catch (e) {
     try { py.kill('SIGTERM'); } catch { /* already gone */ }
-    throw new Error(`${e.message}${stderr()}`);
+    throw new Error(`${e.message}${stderrOf(said)}`);
   }
 }
+
+/// The injector's answer to a plan: how many keys and how big a chunk, or why it would not start.
+async function started(out, ms) {
+  const ready = JSON.parse(await out.next(ms));
+  if (!ready.ready) throw new Error(`the injector would not start: ${JSON.stringify(ready)}`);
+  return ready;
+}
+
+/// What the injector said on stderr, as the tail of an error that names it.
+const stderrOf = (said) => (said.stderr.trim() ? `\n${said.stderr.trim()}` : '');
 
 // ---------- one session ----------
 
@@ -332,7 +339,7 @@ function capture(file) {
 }
 
 /// Waits until the capture has stopped growing — see `QUIET_MS` — or `SETTLE_MS` has passed.
-async function settled(file) {
+async function captureDrained(file) {
   let last = capture(file).length;
   for (let quiet = 0, waited = 0; quiet < QUIET_MS && waited < SETTLE_MS; waited += DRAIN_POLL_MS) {
     await sleep(DRAIN_POLL_MS);
@@ -489,23 +496,24 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
     let wrote = { events: [], lost: true, rechecks: warming.rechecks };
     let before = null;
     if (!warming.lost) {
-      await settled(out);
+      await captureDrained(out);
       before = capture(out).length;
       wrote = await typeKeys(injector, planned.plan, held);
       wrote.rechecks += warming.rechecks;
     }
 
-    await settled(out);
+    await captureDrained(out);
     const sent = wrote.events.map((e, i) => ({ ...e, i }));
     const seen = before === null ? [] : capture(out).slice(before);
     const cold = /^cold start: ([\d.]+) ms$/m.exec(ours.said());
     // The refusal the wait exists for, asked of what happened rather than of what was meant to: a
-    // first measured key written before the app said its launch was quiet measured the launch.
+    // first measured key written before the app said its launch was quiet, or inside the refresh
+    // after, can have waited on the launch's last frame, and measured the launch.
     const quietAt = launchSaid(ours.said(), 'quiet');
     const lead = sent.length && quietAt ? sent[0].t_ns / 1e6 - quietAt.at_us / 1e3 : null;
-    if (lead !== null && lead <= 0) {
-      throw new Error(`the first measured key went ${(-lead).toFixed(1)} ms before the app said its `
-        + 'launch was quiet, so it measured the launch');
+    if (lead !== null && lead < REFRESH_MS) {
+      throw new Error(`the first measured key went ${lead.toFixed(1)} ms after the app said its launch `
+        + `was quiet, inside the ${REFRESH_MS.toFixed(1)} ms refresh its last frame takes, so it measured the launch`);
     }
 
     return {
