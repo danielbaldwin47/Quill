@@ -43,7 +43,7 @@ ok('a state is the defaults with its own overrides on top', () => {
   const duo = type[0].flags;
   assert.equal(duo.chrome, 'off');           // the state's own
   assert.equal(duo.font, 'duo');             // from the defaults
-  assert.equal(duo.text, 'ref/sample.md');
+  assert.equal(duo.text, 'dev/ref/sample.md');
   assert.equal(duo.caret, 403);
 });
 
@@ -81,18 +81,18 @@ ok('an offset is UTF-8 bytes on the way in and characters on the way out', () =>
   assert.equal(byteToChar('a — b', 5), 3);          // the em dash is three bytes and one character
   assert.throws(() => byteToChar('a — b', 3), /boundary/);   // one byte into it, which is no offset at all
   assert.throws(() => byteToChar('hello', 6), /past the end/);
-  const passage = fs.readFileSync(path.join(ROOT, 'ref/sample.md'), 'utf8');
+  const passage = fs.readFileSync(path.join(ROOT, 'dev/ref/sample.md'), 'utf8');
   assert.equal(passage.slice(byteToChar(passage, 153), byteToChar(passage, 171)), 'the way boats move');
 });
 
 // ---------- the command line each state is shot with ----------
 ok('a state becomes the shoot.mjs flags that state means', () => {
   const caret = Object.fromEntries(resolveStates(states, 'caret').map((s) => [s.name, s.flags]));
-  const argv = shootArgv(ROOT, caret.selection, 'shots/oracle/caret/selection.png', 'http://localhost:4173/');
+  const argv = shootArgv(ROOT, caret.selection, 'dev/shots/oracle/caret/selection.png', 'http://localhost:4173/');
   const flag = (name) => argv[argv.indexOf(name) + 1];
-  assert.equal(flag('--out'), 'shots/oracle/caret/selection.png');
+  assert.equal(flag('--out'), 'dev/shots/oracle/caret/selection.png');
   assert.equal(flag('--url'), 'http://localhost:4173/');
-  assert.equal(flag('--text'), 'ref/sample.md');
+  assert.equal(flag('--text'), 'dev/ref/sample.md');
   assert.equal(flag('--w'), '1440');
   assert.equal(flag('--h'), '900');
   assert.equal(flag('--dpr'), '2');
@@ -197,18 +197,18 @@ ok('the ems a step is converted with are the ladder the engine holds', () => {
 // ---------- what makes a frozen Piece stale ----------
 ok('a freeze is stale when the app, the shooter, the passage, the fixture or the states move under it', () => {
   const was = {
-    app: { files: 9, sha256: 'aaaa' }, shoot: 'bbbb', passages: { 'ref/sample.md': 'eeee' },
-    libraries: { 'shots/oracle/library': '1111' }, states: { duo: { font: 'duo' } },
+    app: { files: 9, sha256: 'aaaa' }, shoot: 'bbbb', passages: { 'dev/ref/sample.md': 'eeee' },
+    libraries: { 'dev/shots/oracle/library': '1111' }, states: { duo: { font: 'duo' } },
   };
   const same = JSON.parse(JSON.stringify(was));
   assert.equal(freezeReason(was, same, ['duo']), null);
   assert.match(freezeReason(null, same, ['duo']), /nothing frozen/);
-  assert.match(freezeReason({ ...was, app: { files: 9, sha256: 'cccc' } }, same, ['duo']), /legacy\/app/);
+  assert.match(freezeReason({ ...was, app: { files: 9, sha256: 'cccc' } }, same, ['duo']), /dev\/legacy\/app/);
   assert.match(freezeReason({ ...was, shoot: 'dddd' }, same, ['duo']), /shoot\.mjs/);
-  assert.match(freezeReason(was, { ...same, passages: { 'ref/sample.md': 'ffff' } }, ['duo']), /passage/);
+  assert.match(freezeReason(was, { ...same, passages: { 'dev/ref/sample.md': 'ffff' } }, ['duo']), /passage/);
   // The Library is eight rows and `passages` hashes only the one document that is open, so a
   // fixture edit that changes the other seven has to move something of its own.
-  assert.match(freezeReason(was, { ...same, libraries: { 'shots/oracle/library': '2222' } }, ['duo']), /library fixture/);
+  assert.match(freezeReason(was, { ...same, libraries: { 'dev/shots/oracle/library': '2222' } }, ['duo']), /library fixture/);
   assert.match(freezeReason(was, { ...same, states: { duo: { font: 'mono' } } }, ['duo']), /judged states/);
   assert.match(freezeReason(was, same, []), /shot is missing/);
 });
@@ -222,11 +222,11 @@ ok('states with the same flags were shot into the same bytes', () => {
   const bytes = new Map();
   const flags = new Map();
   let shot = 0;
-  // The Pieces, not the directories under shots/oracle/: a judged state is a Piece's, and that
+  // The Pieces, not the directories under dev/shots/oracle/: a judged state is a Piece's, and that
   // directory holds the `files` Piece's Library fixture as well as the frozen shots.
   for (const piece of Object.keys(states.pieces)) {
     for (const s of resolveStates(states, piece)) {
-      const png = path.join(ROOT, 'shots/oracle', piece, `${s.name}.png`);
+      const png = path.join(ROOT, 'dev/shots/oracle', piece, `${s.name}.png`);
       if (!fs.existsSync(png)) continue;
       shot++;
       const key = JSON.stringify(s.flags);
@@ -268,7 +268,7 @@ ok('a Piece whose states need flags this tool cannot serve names them and fails,
   // QUILL_STATES, on a Piece that is really frozen, which also shows the refusal comes before
   // anything of that Piece's is touched.
   const file = path.join(os.tmpdir(), `quill-oracle-selftest-unservable-${process.pid}.json`);
-  const fixture = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+  const fixture = JSON.parse(fs.readFileSync(path.join(ROOT, 'dev/shots/oracle/states.json'), 'utf8'));
   fixture.pieces.type = { duo: { chrome: 'off', sepia: true }, quattro: { chrome: 'off', font: 'quattro' } };
   fs.writeFileSync(file, JSON.stringify(fixture));
   try {
@@ -277,7 +277,7 @@ ok('a Piece whose states need flags this tool cannot serve names them and fails,
     assert.match(r.err, /state duo names sepia/);
     assert.match(r.out.trim().split('\n').pop(), /^gate oracle type: fail \(1 of 2 states name flags this tool cannot serve yet\)/);
     for (const name of ['duo', 'quattro']) {
-      assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type', `${name}.png`)), `${name}.png went missing`);
+      assert.ok(fs.existsSync(path.join(ROOT, 'dev/shots/oracle/type', `${name}.png`)), `${name}.png went missing`);
     }
   } finally {
     fs.rmSync(file, { force: true });
@@ -285,12 +285,12 @@ ok('a Piece whose states need flags this tool cannot serve names them and fails,
 });
 
 ok('a state judged against a mac-native crop is not this tool\'s to freeze', () => {
-  // The Design oracle's captures are committed under ref/ia/, and no browser driving legacy/ can
+  // The Design oracle's captures are committed under dev/ref/ia/, and no browser driving dev/legacy/ can
   // take one (ADR 0015): the state is passed over, and a Piece with no other kind of state is
   // finished before a server starts. Put in front of the whole command through QUILL_STATES,
   // because the first real such state belongs to the ticket that changes its row, not to this one.
   const file = path.join(os.tmpdir(), `quill-oracle-selftest-${process.pid}.json`);
-  const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+  const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'dev/shots/oracle/states.json'), 'utf8'));
   states.pieces.type = {
     design: { opponent: { capture: 'mac-native-01-light-caret-midword.png', crop: [1500, 380, 100, 40], ours: 'centre' } },
   };
@@ -306,42 +306,42 @@ ok('a state judged against a mac-native crop is not this tool\'s to freeze', () 
     // had stopped being one this freezes — so naming it here would assert a file the command was
     // right to delete. The fixture in front of this case never reaches that path itself.
     for (const name of ['duo', 'quattro']) {
-      assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type', `${name}.png`)), `${name}.png went missing`);
+      assert.ok(fs.existsSync(path.join(ROOT, 'dev/shots/oracle/type', `${name}.png`)), `${name}.png went missing`);
     }
-    assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type/fingerprint.json')));
+    assert.ok(fs.existsSync(path.join(ROOT, 'dev/shots/oracle/type/fingerprint.json')));
   } finally {
     fs.rmSync(file, { force: true });
   }
 });
 
-ok('the refusal for an uninstalled legacy/ names only commands that leave git status clean', () => {
+ok('the refusal for an uninstalled dev/legacy/ names only commands that leave git status clean', () => {
   // node_modules was once tracked, as a symlink to itself (#210), and the advice to `npm i`
-  // over it left `D legacy/node_modules` for the next commit to land. Now that it is ignored,
+  // over it left `D dev/legacy/node_modules` for the next commit to land. Now that it is ignored,
   // the two ways offered — an install, or a worktree's link to the main checkout's install —
   // both stay out of git status; the message may name a second only when it would resolve.
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-oracle-selftest-'));
   try {
     const mk = (...p) => { const d = path.join(tmp, ...p); fs.mkdirSync(d, { recursive: true }); return d; };
-    mk('installed', 'legacy', 'node_modules', 'playwright-core');
-    assert.equal(installRefusal(path.join(tmp, 'installed')), null, 'an installed legacy/ is not refused');
+    mk('installed', 'dev', 'legacy', 'node_modules', 'playwright-core');
+    assert.equal(installRefusal(path.join(tmp, 'installed')), null, 'an installed dev/legacy/ is not refused');
 
-    const alone = installRefusal(path.dirname(mk('plain', 'legacy')));
+    const alone = installRefusal(path.dirname(path.dirname(mk('plain', 'dev', 'legacy'))));
     assert.match(alone, /npm i/);
-    assert.match(alone, /inside legacy\//);
+    assert.match(alone, /inside dev\/legacy\//);
     assert.doesNotMatch(alone, /ln -s/, 'a checkout with no main checkout to link to is offered no link');
     assert.doesNotMatch(alone, /git checkout/, 'nothing to put back: node_modules is not tracked');
 
     // A worktree: its .git is a file naming the main checkout's .git/worktrees/<name>.
     const main = mk('main');
-    mk('main', 'legacy', 'node_modules', 'playwright-core');
-    const wt = path.dirname(mk('main', '.claude', 'worktrees', 'wt', 'legacy'));
+    mk('main', 'dev', 'legacy', 'node_modules', 'playwright-core');
+    const wt = path.dirname(path.dirname(mk('main', '.claude', 'worktrees', 'wt', 'dev', 'legacy')));
     fs.writeFileSync(path.join(wt, '.git'), `gitdir: ${path.join(main, '.git', 'worktrees', 'wt')}\n`);
     const linked = installRefusal(wt);
     assert.match(linked, /npm i/);
-    assert.ok(linked.includes(`ln -s ${path.join(main, 'legacy/node_modules')} legacy/node_modules`), linked);
+    assert.ok(linked.includes(`ln -s ${path.join(main, 'dev/legacy/node_modules')} dev/legacy/node_modules`), linked);
 
     // The same worktree when the main checkout has no install either: no link is offered.
-    fs.rmSync(path.join(main, 'legacy', 'node_modules'), { recursive: true });
+    fs.rmSync(path.join(main, 'dev', 'legacy', 'node_modules'), { recursive: true });
     assert.doesNotMatch(installRefusal(wt), /ln -s/, 'a main checkout with nothing installed is not linked to');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });

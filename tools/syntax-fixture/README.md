@@ -1,7 +1,7 @@
 # Syntax assertion fixtures
 
 These are native GTK captures for #317's `tools/judge-selftest.mjs` cases. The five
-named pairs use the corresponding `shots/oracle/states.json` states. Each `ours-lit`
+named pairs use the corresponding `dev/shots/oracle/states.json` states. Each `ours-lit`
 companion keeps the same flags with `syntax: off`; its name follows the Gate's
 existing second-shot convention. `capture.json` records the build and every flag.
 
@@ -10,7 +10,7 @@ name a `mac-native` opponent rather than an `assert`, and a state is answered on
 (ADR 0017), so the runner takes their companion as the same flags with Syntax off
 instead of asking a rule for its second shot. The selftest derives the two rules they
 used to carry from the two that remain, so a Category added to the Piece still reaches
-all four. Their captures moved to `ref/ia/mac-native/passage-syntax.md`, the passage
+all four. Their captures moved to `dev/ref/ia/mac-native/passage-syntax.md`, the passage
 the Design oracle's own frames were shot on.
 
 Reproduce from the repository root:
@@ -35,7 +35,7 @@ coverage and Focus bands independently of the colour. The two-channel-value
 allowance accounts for 8-bit antialiasing quantisation, with no spatial allowance.
 The real-pair selftest prints elapsed time for the bounded image walks.
 
-`ref/sample.md` has no code or URL. The separate `protection.md` passage supplies
+`dev/ref/sample.md` has no code or URL. The separate `protection.md` passage supplies
 those subjects, alongside a heading marker, strong markers and coloured link
 words. Its on/off captures use the same defaults with chrome off and caret zero.
 They are regression fixtures, not a sixth judged state. Protection rectangles are

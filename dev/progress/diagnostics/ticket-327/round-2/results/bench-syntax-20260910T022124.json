@@ -1,0 +1,108 @@
+{
+  "regime": "syntax",
+  "definition": {
+    "mix": "prose",
+    "where": "end",
+    "pace_ms": 90,
+    "focus": "off",
+    "caret": "end",
+    "pause_every_keys": null,
+    "pause_ms": null,
+    "keys_per_session": 300,
+    "sessions": 1,
+    "warmup_keys": 25
+  },
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "verdict": {
+    "mean_ms": null,
+    "worst_ms": null,
+    "p50_ms": null,
+    "p99_ms": null,
+    "cold_ms": 158.81,
+    "clears_mean": false,
+    "clears_worst": false,
+    "clears_cold": true,
+    "scored": true,
+    "pass": false
+  },
+  "accounting": {
+    "keys_planned": 300,
+    "keys_sent": 0,
+    "keys_seen_by_the_app": 0,
+    "keys_aligned": 0,
+    "keys_with_a_presentation_time": 0,
+    "keys_the_app_never_saw": 0,
+    "keys_the_bench_never_sent": 0,
+    "keys_sharing_a_frame": 0,
+    "every_keystroke_accounted_for": false
+  },
+  "uinput_write_to_presented_ms": null,
+  "mean_ci95": null,
+  "p99_ci95": null,
+  "first_handler_to_presented_ms": null,
+  "samples_ms": [],
+  "input_injection": {
+    "how": "real keys written to /dev/uinput, tools/uinput-keys.py",
+    "device": "quill-latency-bench (uinput, bus USB)",
+    "aligned_by": "gdk_keycode === evdev code + 8, greedily",
+    "focus_rechecks": 1,
+    "stopped_because_focus_was_lost": true
+  },
+  "cold_start_ms": {
+    "each": [
+      158.807
+    ],
+    "worst": 158.807,
+    "stage_first_client": 430.661
+  },
+  "sessions_mean_ms": [
+    null
+  ],
+  "write_gaps_ms": null,
+  "fingerprint": {
+    "at": "2026-09-10T02:21:24.455Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "5ba9dbc07d31d861",
+      "git_head": "b9e6ba3",
+      "tree_was_dirty": true,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "quill-gate-154732",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.2.3-arch1-3",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 0.64,
+      "busiest_processes": [
+        "35.5 helium",
+        "9.6 quill-real <defunct>",
+        "6.4 spotify",
+        "1.6 node-MainThread",
+        "1.6 helium"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

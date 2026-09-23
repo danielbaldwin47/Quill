@@ -1,0 +1,101 @@
+{
+  "ran": "--regimes prose_end_of_draft,prose_focus_sentence",
+  "at": "2026-09-01T22:26:55.816Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "prose_end_of_draft",
+      "file": "dev/shots/latency/bench-prose_end_of_draft-20260901T222619.json",
+      "mean_ms": 2.61,
+      "worst_ms": 13.84,
+      "p50_ms": 1.91,
+      "p99_ms": 9.29,
+      "cold_ms": 130.39,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "prose_focus_sentence",
+      "file": "dev/shots/latency/bench-prose_focus_sentence-20260901T222655.json",
+      "mean_ms": 3.05,
+      "worst_ms": 9.87,
+      "p50_ms": 2.71,
+      "p99_ms": 8.12,
+      "cold_ms": 157.65,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "stage_first_client_ms": 211.813,
+  "pass": true,
+  "lines": [
+    "gate bench prose_end_of_draft: pass — mean 2.61 ms, worst 13.84 ms, p50 1.91 ms, p99 9.29 ms, cold 130.39 ms",
+    "gate bench prose_focus_sentence: pass — mean 3.05 ms, worst 9.87 ms, p50 2.71 ms, p99 8.12 ms, cold 157.65 ms",
+    "gate bench --regimes prose_end_of_draft,prose_focus_sentence: pass — 2 of 2 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "4e8af1f",
+    "binary": "e71f983e67d14bf8"
+  },
+  "fingerprint": {
+    "at": "2026-09-01T22:26:19.565Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "e71f983e67d14bf8",
+      "git_head": "4e8af1f",
+      "tree_was_dirty": true,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "HEADLESS-105",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.1.9-arch1-2",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 0.98,
+      "busiest_processes": [
+        "23.3 helium",
+        "1.2 quill <defunct>",
+        "1.1 claude",
+        "1.1 claude",
+        "1.0 helium"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

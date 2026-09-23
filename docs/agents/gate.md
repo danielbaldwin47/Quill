@@ -26,7 +26,7 @@ and this file to naming each one. A test that needs a window is harness, not tes
 `tools/gate judge`, `bench` or `keys`. An `#[allow(...)]` carries a one-line reason on the same
 line; clippy's `pedantic` group stays off. A float becomes an integer only in the helpers
 `tools/gate` lists (`round`); every `ADR NNNN`, `NOTES §`, `VERDICTS §` and `design.md row` citation
-in `docs/design.md`, `progress/state.json` and `shots/oracle/states.json` resolves (`cite`); and
+in `docs/design.md`, `dev/progress/state.json` and `dev/shots/oracle/states.json` resolves (`cite`); and
 those two JSON files are Node's `JSON.stringify(v, null, 2)` byte for byte (`json`), so a scripted
 edit is a small diff. There is no coverage number: each spec's Testing Decisions names the seams its
 tests hold. A green run is its step lines and that last line and nothing else: each step's own
@@ -67,7 +67,7 @@ For a judged Piece, whose brief and judged states are read first and in one call
 
 **Latency** (any ticket naming the latency Piece; every ticket touching the Editor's keystroke path
 names it). `tools/gate bench` runs the headline regime, `prose_end_of_draft` at 133 wpm on the
-10,062-word `shots/latency/doc10k.md`, with real keys through `/dev/uinput` and presentation from
+10,062-word `dev/shots/latency/doc10k.md`, with real keys through `/dev/uinput` and presentation from
 `GdkFrameTimings` on the dedicated scale-2 headless output. Hard budget, uinput `write(2)` →
 presented: **≤ 5 ms mean, ≤ 16 ms worst**. Cold start, `exec` → first complete frame with a non-zero
 presentation time, the same document open: **≤ 250 ms**. `--all` runs all nineteen regimes of
@@ -103,7 +103,7 @@ workspace 5 for the run and puts back what was there, refuses before it shows an
 rather than a Gate condition — the panel is fractional-scale, so every line it prints says so, its
 results are marked informational inside and named `bench-panel-<regime>-<stamp>.json`, a run of
 several also writes `panel-summary-<stamp>.json`, and `judge latency` refuses one it is handed.
-Results land in `shots/latency/` with the environment fingerprint `legacy/tools/latency.mjs` records
+Results land in `dev/shots/latency/` with the environment fingerprint `dev/legacy/tools/latency.mjs` records
 today, and the run prints the summary lines that go on the ticket and nothing else. The bench runs
 ours `--deterministic` (`tools/bench.mjs`), so the caret's blink and glide never run in a latency
 measurement, and no animation is a bench number's cause (#345 was filed on the blink and falsified
@@ -113,9 +113,9 @@ by this line).
 `--all` summary — the newest, or the one `--summary` names — and gives the Piece to ours when the
 headline regime's mean is under the Parity oracle's 12.17 ms uinput → presented, the cold start
 under its 370 ms, and every scored regime is inside the budget; `saturation_stress` is written into
-the round with its numbers and decides nothing. The oracle's own run is `progress/latency-report.md`
+the round with its numbers and decides nothing. The oracle's own run is `dev/progress/latency-report.md`
 (2.43 ms mean, 15.61 ms worst, 370 ms cold), measured once and left as it was measured. The round is
-`progress/rounds/latency-r<N>.json` in the shape a blind round has, carrying `opponent` and `build`,
+`dev/progress/rounds/latency-r<N>.json` in the shape a blind round has, carrying `opponent` and `build`,
 its one pair the summary against that report; the line and the exit codes are the ones below, and a
 Piece once won is never lost here either. A `--regimes` subset is a measurement and not a verdict:
 it is refused, as is a run that could not account for every keystroke, and one the pointer left the
@@ -131,7 +131,7 @@ states (identical theme, font, size, focus, caret, passage; 1440×900 at scale 2
 a `mac-native` opponent is the stage's, not the Piece's, the way `spell` lost round 7 on #416),
 pairs each shot with the opponent's through `tools/blind.mjs`, runs one fresh-context critic per pair (`tools/critic.md`,
 the gauntlet's critic prompt, Opus at high effort) — every state shot first, then every critic at
-once — reveals, and writes `progress/rounds/<piece>-r<N>.json` in the existing shape plus
+once — reveals, and writes `dev/progress/rounds/<piece>-r<N>.json` in the existing shape plus
 `opponent`, `build` (the commit and the binary's hash) and `states` (each state's shots, pick,
 margin and gaps). **The same pixels are not judged twice**: a state whose shot of ours and whose
 opponent are byte for byte what an earlier round's critic was shown carries that round's verdict
@@ -153,21 +153,21 @@ now lost, ends stdout; above them, one line per state names the winner, the marg
 was carried from, and one the winner's gap, so a round is read from the output rather than from the
 letters in its JSON. The trail to them is `target/gate/judge-<piece>.log`, said on stderr as well
 only when the run refuses, because a round that reached a verdict has every state's detail in its
-JSON. The judged states are `shots/oracle/states.json`: `defaults`, then `pieces.<piece>.<state>` as
+JSON. The judged states are `dev/shots/oracle/states.json`: `defaults`, then `pieces.<piece>.<state>` as
 overrides, a state carrying `opponent` (a `mac-native` crop) or `assert` instead of the Parity pair,
-and `keys.<piece>` the typed scripts; the Pieces' briefs and verdicts are `progress/state.json`,
+and `keys.<piece>` the typed scripts; the Pieces' briefs and verdicts are `dev/progress/state.json`,
 `pieces` a list of `{ id, title, what, judge }` — latency carries no `judge` — and `log` a list of
-`{ at, msg }`. The opponent is the **Parity oracle** while `legacy/` exists: the frozen shots under
-`shots/oracle/<piece>/<state>.png` that `tools/gate oracle <piece>` takes of `legacy/` at that
-Piece's judged states, and re-takes only when the `legacy/` build or the states themselves move. A
+`{ at, msg }`. The opponent is the **Parity oracle** while `dev/legacy/` exists: the frozen shots under
+`dev/shots/oracle/<piece>/<state>.png` that `tools/gate oracle <piece>` takes of `dev/legacy/` at that
+Piece's judged states, and re-takes only when the `dev/legacy/` build or the states themselves move. A
 state that follows a `docs/design.md` row has left the Parity oracle behind and names its own
-opponent instead: `opponent` in `states.json` gives a capture under `ref/ia/shots/mac-native/` — the
-**Design oracle**, iA Writer for Mac as measured in `ref/ia/mac-native/`
+opponent instead: `opponent` in `states.json` gives a capture under `dev/ref/ia/shots/mac-native/` — the
+**Design oracle**, iA Writer for Mac as measured in `dev/ref/ia/mac-native/`
 ([ADR 0015](../adr/0015-the-design-oracle-outranks-the-parity-oracle.md)) — a rectangle in it, and
 the matching rectangle in ours, and the pair is those two crops rather than the two whole windows.
 Ours is shot in Mono at the type the `defaults` name for such a state, so the two grids compare cell
-for cell, and `tools/gate oracle` passes it over: its opponent is committed under `ref/ia/`, not
-frozen from `legacy/`. Once all nine Pieces are won and `legacy/` is deleted, every state's opponent
+for cell, and `tools/gate oracle` passes it over: its opponent is committed under `dev/ref/ia/`, not
+frozen from `dev/legacy/`. Once all nine Pieces are won and `dev/legacy/` is deleted, every state's opponent
 is a `mac-native` crop named that way. Ours wins at any margin. A state that **neither** oracle can
 arbitrate names `assert` in `states.json` instead of an opponent, and is measured rather than shown
 to anybody ([ADR 0017](../adr/0017-a-judged-state-neither-oracle-can-arbitrate.md)):
@@ -177,8 +177,8 @@ rules are that file's `ASSERTIONS` — ghost, folded, split, full, pdf-split, pd
 outline, spell, pinned, menu, settings and palette-control, as `tools/gate --help` lists them — and `states.json`'s `assert` note says what
 each reads. The
 bar for it is that neither oracle holds the subject — `caret/unfocused`, because iA draws no caret
-on a deactivated window and `legacy/` draws one at a column `docs/design.md` has overruled, and the
-two `preview` states, because `legacy/` has no rendered page at all and iA Writer for Mac's own
+on a deactivated window and `dev/legacy/` draws one at a column `docs/design.md` has overruled, and the
+two `preview` states, because `dev/legacy/` has no rendered page at all and iA Writer for Mac's own
 preview is that app's design rather than this one's
 ([#263](https://github.com/danielbaldwin47/Quill/issues/263) § Out of Scope puts Preview outside ADR
 0015's reach) — and not that a round was lost. Four Pieces are asserted-only, every state naming
@@ -186,7 +186,7 @@ preview is that app's design rather than this one's
 does one carrying `opponent`. **A Piece once won is never lost**: a ticket naming a won Piece
 re-judges it, and a loss blocks the ticket. Won means won natively — the rounds carrying `opponent`;
 the gauntlet's r1 verdicts are the JavaScript app's against iA Writer, which is the reference era
-rather than a native win. The two files a judge reads — this one and `progress/state.json`, whose
+rather than a native win. The two files a judge reads — this one and `dev/progress/state.json`, whose
 `pieces[]` entry `{ id, title, what, judge }` carries the Piece's brief as the one string `judge` —
 are read through `tools/gate brief <piece>`, never by `grep`: their briefs are single lines, and a
 two-hit grep returned 25k characters (2026-09-11).
@@ -198,7 +198,7 @@ It builds ours and opens it Live — not `--deterministic`, because the caret ma
 condition tests — on a headless output of the Gate's own, takes keyboard focus and proves it by
 read-back, writes the Piece's scripted bursts through `/dev/uinput` with focus asked again between
 every chunk as `bench` has it, and after each burst reads the Piece's assertions off the pixels. The
-scripts are the `keys` entries of `shots/oracle/states.json`, beside the judged states; most Pieces
+scripts are the `keys` entries of `dev/shots/oracle/states.json`, beside the judged states; most Pieces
 carry none, and a ticket naming one that does runs it. An entry may be a list of scripts, each on
 its own launch: `chrome` types the stats bar's and the Palette's, where Enter on a settings row
 flips its switch with the Palette still up, on a fresh copy of the `settings` file the script
@@ -221,7 +221,7 @@ build, and the summary lines are on the ticket.
 ## Feature tier: before a feature ticket closes
 
 The owner hand-tests the feature from the installed package, built and installed by the commands in
-`README.md` § Build, install and run the native app — written out in full in the Hand test, because
+`README.md` § Install — written out in full in the Hand test, because
 the owner runs it from that comment alone — then the feature's Hand test checklist. The checklist
 lives in the feature spec, in this shape:
 

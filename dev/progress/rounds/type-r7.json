@@ -1,0 +1,107 @@
+{
+  "piece": "type",
+  "round": 7,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "Syntax markers are a full shade too dark: #7A7A7A vs A's #9E9E9E, i.e. 4.2:1 against the #F9F9F9 page vs 2.5:1 — ~65% more contrast. In the gutter that is survivable, but the inline pairs (the two * around the italic, the four ** around 'bottle') sit right in the reading path at a quarter of the text's weight instead of a seventh, so they read as characters rather than scaffolding.",
+  "gapTheirs": "No single left margin: with markers set inline, paragraph text starts at x=622 but the h1 title at 673 (+51px), the h2 title at 697 (+75px) and list-item text at 673 — four different left edges, and the two heading titles don't even align with each other (24px apart). B hangs every marker in the gutter (570/546/576) so prose, headings and list items all start flush at x=623.",
+  "verdict": "Same face, same 30px cap height, same #1C1C1C ink, same 3px blue caret filling exactly one line box — this comes down to where the line starts, and A gets it wrong. Every heading and every list item in A jogs two or three characters to the right of the paragraph edge, so the column's left margin stutters down the page as you write; you notice it on the first heading and never stop noticing it. B parks the hashes and dashes in the margin and keeps one true edge, at the cost of markers I'd lift two steps lighter. A's extra pitch (38 vs 37 CSS px at the identical cap height) is the one thing it holds over B — and since both are on the same size step, one of those two pitches is off its rung.",
+  "oursShot": "dev/shots/type/r7-duo-ours.png",
+  "theirsShot": "dev/shots/oracle/type/duo.png",
+  "refSource": "dev/shots/oracle/type/ — the Parity oracle frozen by tools/gate oracle type from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06; dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: mono from mac-native-11-dark-text-size-05.png",
+  "builderNote": "#95: every advance pinned across the wght axis; Quattro Italic's t and f no longer widen",
+  "secondary": [
+    "Line pitch A 76 device px (38 CSS) vs B 74 (37 CSS) at identical 30px cap height — same size step, two different pitches, so one misses the ladder",
+    "Leading ratio A ~2.53x cap / B ~2.47x cap; both airy enough for drafting, neither cramped",
+    "Blank-line rhythm identical: paragraph break and heading break both ~2.00 line pitches in each",
+    "Caret identical: #00B5FF, 6 device px (3 CSS) wide, height exactly one line pitch (A 76, B 74) — no differentiator",
+    "A's advance is 1.1% narrower (13.68 vs 13.83 CSS px), enough to buy A one more character per line but invisible in reading",
+    "Body ink #1C1C1C on #F9F9F9 in both (16.4:1) — correct, neither pure black nor washed",
+    "Italic is a true italic in both, not an oblique slant; bold 'bottle' matches weight in both"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "3ac2418",
+    "binary": "cb181f81a1886ffb",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "duo",
+      "ours": "dev/shots/type/r7-duo-ours.png",
+      "theirs": "dev/shots/oracle/type/duo.png",
+      "blind": "dev/shots/blind/type/duo",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Syntax markers are a full shade too dark: #7A7A7A vs A's #9E9E9E, i.e. 4.2:1 against the #F9F9F9 page vs 2.5:1 — ~65% more contrast. In the gutter that is survivable, but the inline pairs (the two * around the italic, the four ** around 'bottle') sit right in the reading path at a quarter of the text's weight instead of a seventh, so they read as characters rather than scaffolding.",
+      "gapTheirs": "No single left margin: with markers set inline, paragraph text starts at x=622 but the h1 title at 673 (+51px), the h2 title at 697 (+75px) and list-item text at 673 — four different left edges, and the two heading titles don't even align with each other (24px apart). B hangs every marker in the gutter (570/546/576) so prose, headings and list items all start flush at x=623.",
+      "verdict": "Same face, same 30px cap height, same #1C1C1C ink, same 3px blue caret filling exactly one line box — this comes down to where the line starts, and A gets it wrong. Every heading and every list item in A jogs two or three characters to the right of the paragraph edge, so the column's left margin stutters down the page as you write; you notice it on the first heading and never stop noticing it. B parks the hashes and dashes in the margin and keeps one true edge, at the cost of markers I'd lift two steps lighter. A's extra pitch (38 vs 37 CSS px at the identical cap height) is the one thing it holds over B — and since both are on the same size step, one of those two pitches is off its rung.",
+      "secondary": [
+        "Line pitch A 76 device px (38 CSS) vs B 74 (37 CSS) at identical 30px cap height — same size step, two different pitches, so one misses the ladder",
+        "Leading ratio A ~2.53x cap / B ~2.47x cap; both airy enough for drafting, neither cramped",
+        "Blank-line rhythm identical: paragraph break and heading break both ~2.00 line pitches in each",
+        "Caret identical: #00B5FF, 6 device px (3 CSS) wide, height exactly one line pitch (A 76, B 74) — no differentiator",
+        "A's advance is 1.1% narrower (13.68 vs 13.83 CSS px), enough to buy A one more character per line but invisible in reading",
+        "Body ink #1C1C1C on #F9F9F9 in both (16.4:1) — correct, neither pure black nor washed",
+        "Italic is a true italic in both, not an oblique slant; bold 'bottle' matches weight in both"
+      ]
+    },
+    {
+      "name": "quattro",
+      "ours": "dev/shots/type/r7-quattro-ours.png",
+      "theirs": "dev/shots/oracle/type/quattro.png",
+      "blind": "dev/shots/blind/type/quattro",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Syntax furniture is set at #7A7A7A (4.2:1 on #F9F9F9) against B's #9E9E9E (2.4:1) — the inline `*…*` and `**bottle**` sit only ~94 grey levels off the #1C1C1C prose and are the same grey as the list dash, so emphasis markup speckles the middle of a sentence instead of receding; A's heading text also overhangs its own rail by 6px (3 CSS px, 617 vs body 623).",
+      "gapTheirs": "Markers are in the text flow, not hung: every `#`/`##` and `- ` sits at x=622 with the body, pushing heading and list text to x=667/668 — a 45–46px (≈23 CSS px, one full character cell) step right of the body edge, so the left rail reads as three different edges down the page; A hangs its markers right-aligned into the gutter (cells ending at 595) and keeps heading, body and list text flush at ~620.",
+      "verdict": "A holds one flush left edge for every line of actual prose and puts the markdown scaffolding in the margin where it belongs; B lets a hash and a dash shove the words you wrote 23px to the right, so headings and list items never line up with the paragraph under them. B buys back a little quiet with fainter #9E9E9E markers, then breaks its own rule by leaving the list dash at #7A7A7A — two greys for the same class of punctuation, visible in the same screenful. A's grid is also exact where B's drifts: A's paragraph and heading gaps are 148px, precisely 2×74 pitch, while B's are 151–152 against a 76px pitch, about a pixel of slop per block. A's own sin is that its asterisks and hashes are three shades too insistent, but a dark marker in the margin costs less than a ragged column.",
+      "secondary": []
+    },
+    {
+      "name": "mono",
+      "ours": "dev/shots/type/r7-mono-ours-crop.png",
+      "theirs": "dev/shots/type/r7-mono-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-11-dark-text-size-05.png",
+        "crop": [
+          630,
+          870,
+          1760,
+          520
+        ],
+        "ours": [
+          560,
+          135,
+          1760,
+          520
+        ]
+      },
+      "oursWhole": "dev/shots/type/r7-mono-ours.png",
+      "blind": "dev/shots/blind/type/mono",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Harshest ink/page pair of the two: body at #1c1c1c on a flat #f9f9f9 page = 16.0:1 contrast, ~45% more than B's #cdcdcd on #1a1a1a (11.1:1), and the type is set 1.6% larger (advance 26.01px vs 25.60px, cap 30px vs 29px) for no gain — it just costs ~3 characters of measure, wrapping at ~62 chars where B holds ~65 in the same column.",
+      "gapTheirs": "Syntax markers are the same ink as the prose: the heading '#' is bold, 5px stems at #cccccc — byte-identical in value to 'The Lighthouse' beside it — and the italic '*' delimiters render at the same #cdcdcd as the italic run, so '*Nothing' and 'hurry,*' read as punctuation in the sentence. A dims both to #7a7a7a at 2px regular-weight stems (4.1:1 against its page vs 16:1 for prose), so they recede.",
+      "verdict": "Same typeface, same true italic, same 4px body stems — so the whole decision rests on two things, and B loses both. B's baselines land at 208.5, 282.5, 355.5, 428.5, 501.5: a 74px gap followed by three 73px gaps, i.e. a fractional ~73.25px pitch that cannot sit on the pixel grid, where A repeats 74.00px exactly five times with zero drift; you feel that as a column that will not hold still under a scroll. Worse, B leaves the '#' bold and full-strength, so every heading you type reads as '# The Lighthouse' rather than a title, and the asterisks around the father's line sit in the sentence at full ink like stray glyphs. A's page is the glarier surface and buys three fewer characters per line with its extra 1.6% of size, but that is a preference; B's markers and wobbling pitch are mistakes.",
+      "secondary": [
+        "Paragraph gap is exactly two pitches in both (A 148px = 2x74; B 146px = 2x73.25) — neither wastes a blank line",
+        "Heading set at body size in both (cap 30px A, 29px B), distinguished by weight alone; heading stems 6px vs 4px body in both",
+        "B's page carries +/-1 RGB per-channel grain around #1a1a1a (730 unique colours in a 400x40 empty patch vs A's single flat #f9f9f9) — chroma speckle under the type, invisible at 100% but there",
+        "Italics are genuine cut italics in both, not obliqued roman; ink coverage per line is near-identical (A 15.6%, B 16.6%), so neither blooms noticeably",
+        "No caret is visible in either crop, so caret width, colour and blink could not be judged",
+        "A's markers at 4.1:1 against its page are close to the floor — on a dimmed screen they would drop out entirely"
+      ]
+    }
+  ],
+  "at": "2026-08-31T16:38:35.845Z"
+}

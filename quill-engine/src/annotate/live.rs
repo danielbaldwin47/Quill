@@ -475,7 +475,7 @@ mod tests {
 
     /// The passage the judged states are shot against.
     fn sample() -> Document {
-        Document::open(Path::new("../ref/sample.md"))
+        Document::open(Path::new("../dev/ref/sample.md"))
             .expect("the shared test passage is in the repo")
     }
 
@@ -612,7 +612,7 @@ mod tests {
     #[test]
     fn the_judged_caret_folds_every_marker_the_passage_has() {
         // 403, in the second paragraph: the caret the `live/folded` state is
-        // shot at (`shots/oracle/states.json`). That block carries no marker of
+        // shot at (`dev/shots/oracle/states.json`). That block carries no marker of
         // its own, so the whole passage folds.
         let doc = sample();
         assert_eq!(

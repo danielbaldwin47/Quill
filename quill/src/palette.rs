@@ -14,7 +14,7 @@
 //! [`quill_engine::palette::outline`] with the Library's Documents appended
 //! by name — where Enter jumps the caret to the heading or opens the
 //! Document (#397). Its look is the Parity oracle's palette rules
-//! (`legacy/app/css/chrome.css`), as constants beside the menus'.
+//! (`dev/legacy/app/css/chrome.css`), as constants beside the menus'.
 //!
 //! Once something is typed, the Commands are followed by the Settings rows
 //! no Command answers, under a SETTINGS head (#467): each carries the

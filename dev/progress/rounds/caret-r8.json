@@ -1,0 +1,114 @@
+{
+  "piece": "caret",
+  "round": 8,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "There is no caret at all: a column-by-column scan of all 2880x1800 for contiguous non-background runs >=60px returns only the selection wash (x920-1411, y446-519) — zero insertion-point pixels in the frame, in any colour, dark or light. The instrument under judgement is simply absent.",
+  "gapTheirs": "The caret is drawn at BOTH ends of the selection — two identical 6px@2x (3 CSS px) #00B5FF bars at x910-915 and x1404-1409 — so it is a border on a highlight chip, not a single focus caret; at 3px of full-chroma cyan it is 2-3x the width of the 1-1.5px near-ink hairline a writer expects, and it overshoots the 20.5px ink band by 10px above and 7.5px below to fill the entire 38px line box with zero clearance to the lines above and below.",
+  "verdict": "A shows up and B does not: whatever else is wrong with a 3px neon bar, you can see where you are. But A's caret is not a caret — it is bracketing the selection at both ends, which is what a tag or a chip does, not a text cursor; #00B5FF at roughly five times the chroma of its own #C2EAFA wash reads as a highlighter cap left on the page, not a nib. B has the better-mannered highlight, a quiet #CCEDF8 that lets the ink stay black, and then forgets to draw the one mark that answers 'where am I?'. Neither frame implies blink, drift, or any motion whatsoever; A wins by turning up to its own dimension, not by being right.",
+  "oursShot": "dev/shots/caret/r8-selection-ours.png",
+  "theirsShot": "dev/shots/oracle/caret/selection.png",
+  "refSource": "dev/shots/oracle/caret/ — the Parity oracle frozen by tools/gate oracle caret from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06; dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: caret from mac-native-01-light-caret-midword.png",
+  "builderNote": "#147: the bar centred on the advance boundary (docs/design.md row Caret column); caret/caret now pairs against the Design oracle crop mac-native-01-light-caret-midword",
+  "secondary": [
+    "B's selection #CCEDF8 is the quieter, better-mannered wash than A's #C2EAFA — the only place B leads",
+    "Both selection bands are exactly 100% of line pitch (A 76/76px, B 74/74px @2x), so a multi-line selection tiles into one seamless slab with no seam between lines",
+    "A's caret has no antialiasing on its vertical edges — flat (0,181,255) across all six device pixels — crisp, but also proof it is a 3px box rather than a hairline",
+    "A's caret is exactly flush with the selection band top and bottom (both y458, h76): no overshoot, no rounding, no cap — a rectangle, not a drawn caret",
+    "Neither image gives any evidence of blink phase, caret easing, or motion on keypress; both are static bars/washes",
+    "A's page is #F9F9F9 vs B's #F7F7F7, ink #1C1C1C in both — irrelevant to this dimension but rules out contrast as the cause of B's missing caret"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "4d9990a",
+    "binary": "afa63c8e66991ada",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "caret",
+      "ours": "dev/shots/caret/r8-caret-ours-crop.png",
+      "theirs": "dev/shots/caret/r8-caret-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-01-light-caret-midword.png",
+        "crop": [
+          459,
+          187,
+          720,
+          260
+        ],
+        "ours": [
+          392,
+          205,
+          720,
+          260
+        ]
+      },
+      "oursWhole": "dev/shots/caret/r8-caret-ours.png",
+      "blind": "dev/shots/blind/caret/caret",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The caret sits 3px (1.5 CSS px) low against its own type: cap top 111, baseline 142, so the optical centre is 126.5, but the caret centre is 129.5 — A's is off by only 1px. B's square caps make that misalignment legible instead of hiding it: the bar overshoots the cap line by 18px and drops 15px past the descender with dead-blunt corners at both ends.",
+      "gapTheirs": "The caret is not pixel-snapped: it is anti-aliased on all four sides — left edge #31CAFE (~80% coverage), right edge #C7ECF8 (~22%), caps fading through #77DAFC — so its effective width is ~3.2px with an indeterminate boundary, versus B's hard #00BFFF from x357 through x362 with zero anti-aliasing. On top of that A domes the terminals with a ~1.5 device px (0.75 CSS px) cap radius, turning a 3px caret into a lozenge against a mono face whose glyph terminals are all flat.",
+      "verdict": "B wins on the only thing a caret has to do: be a crisp edge. A's caret is soft on every side — an 80%-alpha left edge and a 22%-alpha right edge mean you cannot say where the insertion point actually is, and at 1x that fuzz doubles into a smear; the rounded pill caps are the wrong terminal shape for a squared-off mono face. B's is a hard, honest hairline, though it is seated 1.5 CSS px below the optical centre of its line and its blunt corners advertise the fact. Neither is a precise instrument: both run the caret to the full 74px line box, 2.4× the 30–32px cap height, so what you get is a fence post standing in the text, not a nib.",
+      "secondary": [
+        "Neither screenshot shows a selection at all — selection colour is unjudgeable in both; that is a gap in the evidence, not a virtue of either",
+        "Caret colour is identical in both: #00BFFF DeepSkyBlue, a saturated stock system blue with no relationship to the near-black #000-#191919 ink or the #F7F7F7 paper",
+        "Caret height 74px = 100% of the 74px line box in both; it clears the cap line by 21px (A) / 18px (B) and the descender by 15px in both — a caret sized to the line box, not to the type",
+        "Nothing in either static frame implies blink rate, easing, or caret motion — no trail, no phase, no smearing; neither can be credited on 'alive'",
+        "A's background carries ±1-level dither (26 colours, sd 0.38 over a flat 150x150 patch) vs B's absolutely flat #F7F7F7 (1 colour); it does the soft caret no favours",
+        "B's type renders 2px larger in cap height (32 vs 30) at the same 74px line-height, which is why the two carets share a y-range but not a relationship to their own baselines",
+        "Caret-to-glyph gaps are identical in both: 1px (0.5 CSS px) clear of the preceding 'l', 0px clear of the following 'a' — the caret touches the next glyph in each"
+      ]
+    },
+    {
+      "name": "selection",
+      "ours": "dev/shots/caret/r8-selection-ours.png",
+      "theirs": "dev/shots/oracle/caret/selection.png",
+      "blind": "dev/shots/blind/caret/selection",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "There is no caret at all: a column-by-column scan of all 2880x1800 for contiguous non-background runs >=60px returns only the selection wash (x920-1411, y446-519) — zero insertion-point pixels in the frame, in any colour, dark or light. The instrument under judgement is simply absent.",
+      "gapTheirs": "The caret is drawn at BOTH ends of the selection — two identical 6px@2x (3 CSS px) #00B5FF bars at x910-915 and x1404-1409 — so it is a border on a highlight chip, not a single focus caret; at 3px of full-chroma cyan it is 2-3x the width of the 1-1.5px near-ink hairline a writer expects, and it overshoots the 20.5px ink band by 10px above and 7.5px below to fill the entire 38px line box with zero clearance to the lines above and below.",
+      "verdict": "A shows up and B does not: whatever else is wrong with a 3px neon bar, you can see where you are. But A's caret is not a caret — it is bracketing the selection at both ends, which is what a tag or a chip does, not a text cursor; #00B5FF at roughly five times the chroma of its own #C2EAFA wash reads as a highlighter cap left on the page, not a nib. B has the better-mannered highlight, a quiet #CCEDF8 that lets the ink stay black, and then forgets to draw the one mark that answers 'where am I?'. Neither frame implies blink, drift, or any motion whatsoever; A wins by turning up to its own dimension, not by being right.",
+      "secondary": [
+        "B's selection #CCEDF8 is the quieter, better-mannered wash than A's #C2EAFA — the only place B leads",
+        "Both selection bands are exactly 100% of line pitch (A 76/76px, B 74/74px @2x), so a multi-line selection tiles into one seamless slab with no seam between lines",
+        "A's caret has no antialiasing on its vertical edges — flat (0,181,255) across all six device pixels — crisp, but also proof it is a 3px box rather than a hairline",
+        "A's caret is exactly flush with the selection band top and bottom (both y458, h76): no overshoot, no rounding, no cap — a rectangle, not a drawn caret",
+        "Neither image gives any evidence of blink phase, caret easing, or motion on keypress; both are static bars/washes",
+        "A's page is #F9F9F9 vs B's #F7F7F7, ink #1C1C1C in both — irrelevant to this dimension but rules out contrast as the cause of B's missing caret"
+      ]
+    },
+    {
+      "name": "unfocused",
+      "ours": "dev/shots/caret/r8-unfocused-ours.png",
+      "theirs": "dev/shots/oracle/caret/unfocused.png",
+      "blind": "dev/shots/blind/caret/unfocused",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Only 2 device px (1 CSS px) of clearance between the 's' ink terminal (ends x=1940) and the caret (starts x=1943), against A's 7 device px — B right-aligns the caret to the advance boundary so it sits inside the cell it just left, giving side bearings of 2px left / 25px right (12.5:1 lopsided vs A's 7/18, 2.6:1). At normal size the caret reads as a blue tail welded to the 's', not a separate instrument.",
+      "gapTheirs": "Caret sits 3 device px above the optical centre of its glyph band — 22px of overhang above the ascender against 15px below the descender — and is drawn entirely to the right of the advance boundary (left edge at x=1930, boundary at ~1929.5), so it floats inside the following space cell instead of straddling the insertion point; it is also the taller of the two bars, 76px over a 29px ascender (2.62x) vs B's 74px (2.55x).",
+      "verdict": "Both ship the same caret and both get it wrong: a 3px pale sky-blue bar stretched to the full line box — 76px and 74px against a 29px ascender, roughly 2.6x — so the insertion point is a highlighter stripe where a hairline belongs, and at #AEE5FB on #F9F9F9 it is the faintest mark on a page where it is the one thing that must be instantly findable. Neither image shows a selection at all, so selection colour is simply untested in both. A wins on the one thing that separates them: it leaves 7 device px of air after the 's' instead of B's 2, where B's caret grazes the letter and reads as a blue terminal on the glyph. That is a slight win on a dimension where both are wrong.",
+      "secondary": [
+        "Both 2880x1800; same 2x DPR, same font size (29 device px ascender in both)",
+        "Caret height = exactly 100% of line pitch in both (76/76 and 74/74) — no tighter em-relative caret in either",
+        "Neither caret is vertically centred on the glyph band: A off by 3 device px high, B by 1.5",
+        "No selection highlight present anywhere in either image — a full-image colour scan found only the caret as non-neutral",
+        "Blink/motion cannot be judged from stills; nothing in either frame implies a phase or easing",
+        "Caret edges are crisp in both (no subpixel bleed), so neither loses definition to antialiasing",
+        "Line-height ~1.95 in A vs ~1.92 in B — near-identical, and both loose enough to make a full-height caret unavoidably oversized"
+      ]
+    }
+  ],
+  "at": "2026-08-31T19:07:39.759Z"
+}

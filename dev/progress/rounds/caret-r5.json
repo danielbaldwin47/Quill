@@ -1,0 +1,85 @@
+{
+  "piece": "caret",
+  "round": 5,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "Zero selection feedback. A's chrome reports 'Selection · 4 words · 18 characters' in #00B5FF — the caret's exact accent hex — confirming the 18-character run you actually grabbed; B highlights the phrase and says nothing, so an off-by-one selection is invisible until you paste it.",
+  "gapTheirs": "No bottom scroll padding: A's status-bar hairline at device y=1748 cuts the last text line mid-x-height, so a caret placed on that line loses roughly its lower 40% behind a 26px CSS bar; B's column runs uninterrupted to the viewport edge.",
+  "verdict": "The caret itself is the same blunt instrument in both: a 3px slab of #00B5FF, 36px tall against a 19.5px ink height, overshooting the ascenders by ~9px and the descenders by ~7px — that is a code-editor block marker parked in a prose column, not a nib. Selection bands fill the entire 36px line box with zero gap, so a three-line grab becomes one unbroken slab of cyan with no leading showing through. A wins only because it tells you what you selected in the caret's own colour; B leaves you squinting at a highlight edge to decide whether the trailing space is in. Neither renders the anchor differently from the focus, so shift-extending is a guess about which of the two identical bars will move.",
+  "oursShot": "dev/shots/caret/r5-selection-ours.png",
+  "theirsShot": "dev/shots/oracle/caret/selection.png",
+  "refSource": "dev/shots/oracle/caret/ — the Parity oracle frozen by tools/gate oracle caret from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "",
+  "secondary": [],
+  "opponent": "oracle",
+  "build": {
+    "git": "4ba5ac4",
+    "binary": "e1e9bcaf97dd890b",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "caret",
+      "ours": "dev/shots/caret/r5-caret-ours.png",
+      "theirs": "dev/shots/oracle/caret/caret.png",
+      "blind": "dev/shots/blind/caret/caret",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B ships the identical caret with the identical defect — 3.5 device px overshoot past the insertion boundary, a 7px void between 's' and the bar — and gives it nothing to work with: zero positional feedback anywhere in 2880×1800, no line/column, no count, no current-line tint, where A at least parks a live '961 characters' readout under the text. The caret is the sole state indicator and it is mute.",
+      "gapTheirs": "Caret left edge lands 4.5 device px (2.25 CSS px) right of the character-cell boundary at x=1895.5 vs B's 3.5px — leaving an 8px white gap between the 's' ink (ends x=1892) and a caret that is only 6px wide, so the mark floats off the glyph it is supposed to be welded to. Worse, an opaque status bar with a 1px #DFDFDF rule at y≈1750 guillotines the writing surface: the list line at y1741–1777 is sliced through its top quarter, so a caret on that line (y≈1722–1793) would render at 28 of 72px — 39% of itself — and the next line's caret is fully swallowed.",
+      "verdict": "This is not a comparison, it is the same caret twice, shifted one device pixel. Both draw a 3×36 CSS px cyan slab at exactly 1.0× line-height, hard-edged, unmodulated #00B5FF — the only colour on an otherwise #1C1C1C-on-#F9F9F9 page, which reads as a default someone forgot to tune rather than a chosen instrument, and both float it ~2 CSS px past the character cell so it never actually touches the 's' you just typed. B takes it on one point only: it is half a pixel closer to the truth, and it does not let a status bar amputate the caret to 39% height the moment you write to the bottom of the window. Neither image shows a selection — 432 chromatic pixels in the entire frame, all of them caret — so the selection half of this dimension is simply undelivered by both.",
+      "secondary": [
+        "Caret geometry byte-identical: 6×72 device px, #00B5FF, 432px, no antialiasing on either edge in both images",
+        "Caret height = exactly 1.0× the 36 CSS px line box in both; 19px above ink-top, 16px below ink-bottom — no optical inset, no descender-aware trim",
+        "Only 1 device px of difference exists between the two carets (A x1900–1905, B x1899–1904); diff of the aligned frames confirms two 1×72 slivers and nothing else",
+        "Selection colour unjudgeable: neither frame contains a single selection pixel — colour histogram shows only #F9F9F9, greys, and the caret cyan",
+        "No current-line highlight, no caret glow, no focus-state dimming in either — the caret carries 100% of the 'alive' burden as a static bar",
+        "Blink cadence, caret easing on arrow-key movement, and drag-selection behaviour are unobservable in stills for both — both graded on a still-frame only",
+        "A's caret is 3px from a 6px-wide bar's ideal centred position on the boundary (would be x1892.5–1898.5); B is 2.5px — both fail a centred-on-boundary read and both fail a flush-left-on-boundary read",
+        "A's content sits +64px lower than B's due to titlebar chrome, costing ~1.7 lines of caret headroom at the bottom before the status bar clips"
+      ]
+    },
+    {
+      "name": "selection",
+      "ours": "dev/shots/caret/r5-selection-ours.png",
+      "theirs": "dev/shots/oracle/caret/selection.png",
+      "blind": "dev/shots/blind/caret/selection",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Zero selection feedback. A's chrome reports 'Selection · 4 words · 18 characters' in #00B5FF — the caret's exact accent hex — confirming the 18-character run you actually grabbed; B highlights the phrase and says nothing, so an off-by-one selection is invisible until you paste it.",
+      "gapTheirs": "No bottom scroll padding: A's status-bar hairline at device y=1748 cuts the last text line mid-x-height, so a caret placed on that line loses roughly its lower 40% behind a 26px CSS bar; B's column runs uninterrupted to the viewport edge.",
+      "verdict": "The caret itself is the same blunt instrument in both: a 3px slab of #00B5FF, 36px tall against a 19.5px ink height, overshooting the ascenders by ~9px and the descenders by ~7px — that is a code-editor block marker parked in a prose column, not a nib. Selection bands fill the entire 36px line box with zero gap, so a three-line grab becomes one unbroken slab of cyan with no leading showing through. A wins only because it tells you what you selected in the caret's own colour; B leaves you squinting at a highlight edge to decide whether the trailing space is in. Neither renders the anchor differently from the focus, so shift-extending is a guess about which of the two identical bars will move.",
+      "secondary": []
+    },
+    {
+      "name": "unfocused",
+      "ours": "dev/shots/caret/r5-unfocused-ours.png",
+      "theirs": "dev/shots/oracle/caret/unfocused.png",
+      "blind": "dev/shots/blind/caret/unfocused",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Caret is #AFE5FB against a #F9F9F9 page — 1.29:1 contrast vs B's 1.30:1 (#AEE5FB). A one-part-in-255 red-channel difference; A is the fractionally paler, fractionally weaker mark. This is the only axis on which A is behind, and it is invisible.",
+      "gapTheirs": "Caret occupies device columns 1900-1905, one device px (0.5 CSS px) further right than A's 1899-1904. The true character-cell boundary after 'steps' computes to x≈1896 (23.75 px advance, 's' glyph 1875-1892), so B leaves an 8 px gap to the letter it follows against A's 7 px, drifting further into the middle of the space instead of tucking against the character just typed. B's caret reads a half-pixel more like it belongs to the next word.",
+      "verdict": "These are the same caret with a rounding error between them, and it is a bad caret twice. Six device px wide and 72 px tall — exactly the full 72 px line pitch, 2.57x the 28 px cap height, riding 20 px above the cap line and 24 px below the baseline — so it spans the entire leading and butts into the caret slot of the lines above and below; that is a highlighter slab, not a nib. Worse, it is drawn at #AFE5FB for 1.29:1 contrast on #F9F9F9 while the body text sits at 16.19:1, making the one element that must always be findable the palest thing on the page: you will lose it mid-sentence and hunt for it. Both float ~6 px right of the actual insertion boundary, so neither tells you truthfully where the next letter lands; A is one pixel less wrong, which is the entire case for A.",
+      "secondary": [
+        "Both images 2880x1800, identical body metrics: 72 px line pitch, 28 px cap height, 23.75 px advance, glyph columns match to the pixel across the caret's line",
+        "Neither screenshot shows a selection, so selection colour and its relationship to caret colour cannot be judged at all — half this brief is unanswerable from the evidence",
+        "Blink and motion are unjudgeable from stills; no motion blur, ghost, or trail in either that would imply smooth caret animation",
+        "Both carets are hard rectangles: exactly 432 pixels of a single solid colour, zero antialiased edge pixels, no rounded caps, no subpixel horizontal positioning — snapped to the device grid, which at least keeps edges crisp but forbids fractional placement and guarantees the ~6 px boundary error can never be corrected",
+        "Neither app draws a current-line highlight: the caret line strip is flat #F9F9F9 identical to every other line, so the pale caret gets no supporting cue to help locate it",
+        "Caret width is 25% of the character cell (6 px of a 23.75 px advance) — at this weight it half-fills the inter-word space and momentarily reads as a typed pipe character",
+        "B carries window chrome (a title bar with 'Untitled.md' and a bottom status bar reading '188 words / 961 characters / 1 min read') that A lacks; irrelevant to the caret, and the bottom bar clips the first list item"
+      ]
+    }
+  ],
+  "at": "2026-08-29T19:26:47.628Z"
+}

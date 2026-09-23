@@ -6,7 +6,7 @@ at both ends are iA's" — that paragraph's macOS evidence is a marketing frame 
 grab-handles. The Editor still draws the selection, which is the rest of this ADR.*
 
 *Contradicted on **iA Writer** by the app itself, running —
-[`ref/ia/mac-native/VERDICTS.md`](../../ref/ia/mac-native/VERDICTS.md) § ADR 0012. There are no
+[`dev/ref/ia/mac-native/VERDICTS.md`](../../dev/ref/ia/mac-native/VERDICTS.md) § ADR 0012. There are no
 round knobs on the Mac app's selection (0012.1), no bar at either end (0012.2) and no inset bar
 (0012.3): a held selection is fill only, with zero accent pixels in any frame that holds one. 0012.6
 is moot for the same reason — there are no ends — and the idle fill it describes is a neutral grey,
@@ -37,11 +37,11 @@ is its own rounded box on its own rows, its stylesheet sets its colour and nothi
 and the bars would be cut from the Editor's band, so the two disagree by a pixel somewhere on every
 row. macOS iA adds iOS-style round knobs to its two bars; the owner declined them. Bars inset
 inside the fill, as iA's own Windows capture has them
-(`ref/ia/shots/msstore-win-04-dark-style-check-selection.png`, where the two bars and the fill share
+(`dev/ref/ia/shots/msstore-win-04-dark-style-check-selection.png`, where the two bars and the fill share
 a column span exactly), were built and lost round 4: a bar is 0.155 em and a glyph's left side
 bearing at 20 px is less, so an inset bar covers the bearing whole and lands on the stem of the letter
 it holds, and the critic read bar and letter as one smear. The bars bracket from outside, which is
-the Parity oracle's own geometry (`setEdge(edgeA, firstEdge, -M.w)` in `legacy/app/js/caret.js`).
+the Parity oracle's own geometry (`setEdge(edgeA, firstEdge, -M.w)` in `dev/legacy/app/js/caret.js`).
 
 ## Consequences
 

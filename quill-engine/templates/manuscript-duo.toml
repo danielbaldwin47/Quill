@@ -3,7 +3,7 @@
 # The Mono manuscript's numbers on Quill Duo. See `manuscript-mono.toml` for
 # where each of them comes from.
 #
-# The only Manuscript captured: `ref/ia/mac-native/CAPTURE-2026-09-09.md`
+# The only Manuscript captured: `dev/ref/ia/mac-native/CAPTURE-2026-09-09.md`
 # § "#261 — Preview", off `mac-native-20-dark-preview-manuscript-duo-full`,
 # reads #101010 paper on #cccccc ink, and [dark] holds both since ADR 0019's
 # baseline pass: the family keeps the Editor's type, not its ground, and

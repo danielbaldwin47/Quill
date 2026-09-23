@@ -63,7 +63,7 @@ pub trait SpellChecker: Send {
 /// [`Position::End`], so the dictionary's apostrophe and hyphen rules decide what a word is:
 /// `don't` is one word where `'` may stand mid-word and two where it may not, and a closing `'`
 /// stays outside. Two kinds of token are dropped rather than checked, as the Design oracle drops
-/// them (`ref/ia/mac-native/NOTES.md` § State 26 § What is marked, and `docs/design.md` row *What a
+/// them (`dev/ref/ia/mac-native/NOTES.md` § State 26 § What is marked, and `docs/design.md` row *What a
 /// spell mark covers*): one containing a digit (`2b`, `Q3`), since no dictionary spells it, and an
 /// **all-caps** one (`DRAFFT`), since an acronym or a shout is not a spelling a dictionary can
 /// answer for. A CamelCase token is a word like any other — it has lower-case letters in it.

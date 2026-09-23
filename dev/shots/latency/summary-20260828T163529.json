@@ -1,0 +1,250 @@
+{
+  "ran": "--all",
+  "at": "2026-08-28T16:35:29.677Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "prose_end_of_draft",
+      "file": "dev/shots/latency/bench-prose_end_of_draft-20260828T162915.json",
+      "mean_ms": 2.47,
+      "worst_ms": 8.03,
+      "p50_ms": 1.98,
+      "p99_ms": 7.56,
+      "cold_ms": 139.31,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "prose_middle_of_draft",
+      "file": "dev/shots/latency/bench-prose_middle_of_draft-20260828T162951.json",
+      "mean_ms": 2.41,
+      "worst_ms": 8.09,
+      "p50_ms": 2.18,
+      "p99_ms": 7.41,
+      "cold_ms": 177.74,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "prose_focus_sentence",
+      "file": "dev/shots/latency/bench-prose_focus_sentence-20260828T163027.json",
+      "mean_ms": 2.66,
+      "worst_ms": 9.21,
+      "p50_ms": 2.26,
+      "p99_ms": 7.86,
+      "cold_ms": 148.64,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "paragraph_breaks",
+      "file": "dev/shots/latency/bench-paragraph_breaks-20260828T163104.json",
+      "mean_ms": 2.92,
+      "worst_ms": 11.97,
+      "p50_ms": 2.23,
+      "p99_ms": 10.69,
+      "cold_ms": 162.4,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "revision",
+      "file": "dev/shots/latency/bench-revision-20260828T163140.json",
+      "mean_ms": 2.96,
+      "worst_ms": 9.17,
+      "p50_ms": 2.5,
+      "p99_ms": 9.05,
+      "cold_ms": 138.56,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "markdown_syntax",
+      "file": "dev/shots/latency/bench-markdown_syntax-20260828T163216.json",
+      "mean_ms": 2.4,
+      "worst_ms": 10.93,
+      "p50_ms": 1.91,
+      "p99_ms": 7.86,
+      "cold_ms": 283.34,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": false,
+      "pass": false,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "fence_flip",
+      "file": "dev/shots/latency/bench-fence_flip-20260828T163252.json",
+      "mean_ms": 2.74,
+      "worst_ms": 8.77,
+      "p50_ms": 2.19,
+      "p99_ms": 8.32,
+      "cold_ms": 151.4,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "paste_blocks",
+      "file": "dev/shots/latency/bench-paste_blocks-20260828T163329.json",
+      "mean_ms": 2.27,
+      "worst_ms": 12.68,
+      "p50_ms": 1.79,
+      "p99_ms": 9.5,
+      "cold_ms": 143.93,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "letters_only_r1",
+      "file": "dev/shots/latency/bench-letters_only_r1-20260828T163405.json",
+      "mean_ms": 2.57,
+      "worst_ms": 8.59,
+      "p50_ms": 2.13,
+      "p99_ms": 7.33,
+      "cold_ms": 139.15,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "bursts_and_pauses",
+      "file": "dev/shots/latency/bench-bursts_and_pauses-20260828T163457.json",
+      "mean_ms": 2.25,
+      "worst_ms": 11.05,
+      "p50_ms": 1.88,
+      "p99_ms": 7.07,
+      "cold_ms": 311.08,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": false,
+      "pass": false,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "fast_typist",
+      "file": "dev/shots/latency/bench-fast_typist-20260828T163518.json",
+      "mean_ms": 2.66,
+      "worst_ms": 11.04,
+      "p50_ms": 2.03,
+      "p99_ms": 8.43,
+      "cold_ms": 140.99,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "saturation_stress",
+      "file": "dev/shots/latency/bench-saturation_stress-20260828T163529.json",
+      "mean_ms": 24.43,
+      "worst_ms": 33.44,
+      "p50_ms": 24.62,
+      "p99_ms": 33.26,
+      "cold_ms": 133.81,
+      "clears_mean": false,
+      "clears_worst": false,
+      "clears_cold": true,
+      "pass": false,
+      "every_keystroke_accounted_for": true
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "stage_first_client_ms": 301.239,
+  "pass": false,
+  "lines": [
+    "gate bench prose_end_of_draft: pass — mean 2.47 ms, worst 8.03 ms, p50 1.98 ms, p99 7.56 ms, cold 139.31 ms",
+    "gate bench prose_middle_of_draft: pass — mean 2.41 ms, worst 8.09 ms, p50 2.18 ms, p99 7.41 ms, cold 177.74 ms",
+    "gate bench prose_focus_sentence: pass — mean 2.66 ms, worst 9.21 ms, p50 2.26 ms, p99 7.86 ms, cold 148.64 ms",
+    "gate bench paragraph_breaks: pass — mean 2.92 ms, worst 11.97 ms, p50 2.23 ms, p99 10.69 ms, cold 162.4 ms",
+    "gate bench revision: pass — mean 2.96 ms, worst 9.17 ms, p50 2.5 ms, p99 9.05 ms, cold 138.56 ms",
+    "gate bench markdown_syntax: fail — mean 2.4 ms, worst 10.93 ms, p50 1.91 ms, p99 7.86 ms, cold 283.34 ms",
+    "gate bench fence_flip: pass — mean 2.74 ms, worst 8.77 ms, p50 2.19 ms, p99 8.32 ms, cold 151.4 ms",
+    "gate bench paste_blocks: pass — mean 2.27 ms, worst 12.68 ms, p50 1.79 ms, p99 9.5 ms, cold 143.93 ms",
+    "gate bench letters_only_r1: pass — mean 2.57 ms, worst 8.59 ms, p50 2.13 ms, p99 7.33 ms, cold 139.15 ms",
+    "gate bench bursts_and_pauses: fail — mean 2.25 ms, worst 11.05 ms, p50 1.88 ms, p99 7.07 ms, cold 311.08 ms",
+    "gate bench fast_typist: pass — mean 2.66 ms, worst 11.04 ms, p50 2.03 ms, p99 8.43 ms, cold 140.99 ms",
+    "gate bench saturation_stress: fail — mean 24.43 ms, worst 33.44 ms, p50 24.62 ms, p99 33.26 ms, cold 133.81 ms",
+    "gate bench --all: fail — 9 of 12 regimes clear the budget, not markdown_syntax, bursts_and_pauses, saturation_stress (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "5f1311a",
+    "binary": "454ec469f4a1d3c4"
+  },
+  "fingerprint": {
+    "at": "2026-08-28T16:29:15.378Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "454ec469f4a1d3c4",
+      "git_head": "5f1311a",
+      "tree_was_dirty": true
+    },
+    "display": {
+      "output": "HEADLESS-67",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.1.9-arch1-2",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 0.13,
+      "busiest_processes": [
+        "1.4 helium",
+        "1.2 claude",
+        "1.2 helium",
+        "1.1 cliamp",
+        "1.1 quill <defunct>"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

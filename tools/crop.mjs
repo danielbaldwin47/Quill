@@ -3,10 +3,10 @@
 //
 //   import { cropPng, resolveOpponent, CAPTURES } from './crop.mjs'
 //
-// A judged state in `shots/oracle/states.json` may name an `opponent` instead of being judged
+// A judged state in `dev/shots/oracle/states.json` may name an `opponent` instead of being judged
 // against the Parity oracle's frozen shot ([ADR 0015](../docs/adr/0015-the-design-oracle-outranks-the-parity-oracle.md)).
 // What it names is one of the captures of iA Writer for Mac running natively — the Design oracle,
-// measured in `ref/ia/mac-native/` — and the crop of it that holds the behaviour the state is
+// measured in `dev/ref/ia/mac-native/` — and the crop of it that holds the behaviour the state is
 // about. This module reads that entry, works out the matching crop of ours, and cuts both.
 //
 // WHY OURS NEEDS ITS OWN RECTANGLE. The Design oracle's window is 3024 x 1898 device px and ours is
@@ -32,9 +32,9 @@ import { pngSize } from './harness.mjs';
 import { decodePng } from './keys-assert.mjs';
 
 // Where a capture a state may name lives. Named by file rather than by path, so a state cannot
-// point the opponent at a marketing still in `ref/ia/shots/` — the frames three of this repo's
+// point the opponent at a marketing still in `dev/ref/ia/shots/` — the frames three of this repo's
 // wrong readings came off (ADR 0015).
-export const CAPTURES = 'ref/ia/shots/mac-native';
+export const CAPTURES = 'dev/ref/ia/shots/mac-native';
 
 // ---------- the entry a state carries ----------
 

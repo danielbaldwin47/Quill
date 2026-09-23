@@ -1,5 +1,5 @@
 # Maintainer: Daniel Baldwin <danielbaldwin47@gmail.com>
-# Build from this checkout: README.md § Build, install and run.
+# Build from this checkout: README.md § Install.
 #
 # The Rust workspace is built straight from the working tree: nothing is
 # downloaded except in prepare(), so `makepkg -f` needs the network once and

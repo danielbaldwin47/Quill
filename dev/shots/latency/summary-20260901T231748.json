@@ -1,0 +1,88 @@
+{
+  "ran": "--regimes revision",
+  "at": "2026-09-01T23:17:48.248Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "revision",
+      "file": "dev/shots/latency/bench-revision-20260901T231748.json",
+      "mean_ms": 3.08,
+      "worst_ms": 11.14,
+      "p50_ms": 2.53,
+      "p99_ms": 8.71,
+      "cold_ms": 139.51,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "regimes_not_scored": [],
+  "stage_first_client_ms": 286.631,
+  "pass": true,
+  "lines": [
+    "gate bench revision: pass — mean 3.08 ms, worst 11.14 ms, p50 2.53 ms, p99 8.71 ms, cold 139.51 ms",
+    "gate bench --regimes revision: pass — 1 of 1 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "c66a6f6",
+    "binary": "5804fc30cd21f431"
+  },
+  "fingerprint": {
+    "at": "2026-09-01T23:17:48.222Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "5804fc30cd21f431",
+      "git_head": "c66a6f6",
+      "tree_was_dirty": false,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "HEADLESS-129",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.1.9-arch1-2",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 3.09,
+      "busiest_processes": [
+        "32.0 helium",
+        "2.0 claude",
+        "1.8 quill <defunct>",
+        "1.1 helium",
+        "1.0 electron"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

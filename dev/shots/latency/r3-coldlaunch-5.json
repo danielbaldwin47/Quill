@@ -1,0 +1,61 @@
+{
+  "env": {
+    "at": "2026-08-27T02:59:11.250Z",
+    "chromium": "151.0.7922.173",
+    "headless": false,
+    "cpu_throttle_x": 1,
+    "reduced_motion": "no-preference",
+    "node": "v26.7.0",
+    "os": "Linux 7.1.9-arch1-2",
+    "cpu": "13th Gen Intel(R) Core(TM) i5-13600K (20 threads)",
+    "load1": 0.63,
+    "busiest_processes": [
+      "115 node-MainThread",
+      "96.1 chromium",
+      "89.1 chromium",
+      "72.7 chromium",
+      "38.0 chromium"
+    ],
+    "mem_gb": 31,
+    "display": [
+      {
+        "name": "HEADLESS-11",
+        "model": "",
+        "mode": "1920x1080",
+        "refresh_hz": 60,
+        "scale": 2,
+        "vrr": false,
+        "focused": true
+      }
+    ],
+    "viewport": "1440x900",
+    "app": {
+      "files": 16,
+      "sha256": "6c61caa21c576e13",
+      "git_head": "f354306",
+      "served_from": "/tmp/quill-r3-snap"
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 10062,
+      "chars": 53031,
+      "lines": 432
+    }
+  },
+  "where": "HEADLESS-11",
+  "cold_start": {
+    "what": "bin/quill: shell exec of the launcher -> the named milestone, wall clock. Includes the chromium process spawn, profile init, window creation, navigation and the full render of the document.",
+    "profile": "/home/diggle/.cache/quill/browser",
+    "exec_to_first_contentful_paint_ms": 357.7,
+    "exec_to_editor_ready_ms": 276.6,
+    "exec_to_navigation_start_ms": 161.7,
+    "navigation_to_first_contentful_paint_ms": 196,
+    "navigation_to_editor_ready_ms": 114.9,
+    "document_in_editor": {
+      "chars": 0,
+      "lines": 1
+    }
+  },
+  "typing": [],
+  "sessions": null
+}

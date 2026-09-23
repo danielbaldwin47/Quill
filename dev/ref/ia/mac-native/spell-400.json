@@ -1,0 +1,297 @@
+{
+ "rig": {
+  "region_pt": [
+   0,
+   33,
+   1512,
+   949
+  ],
+  "passage": "dev/ref/spell.md",
+  "state": 26,
+  "ticket": 400,
+  "window_bounds": "{0,33,1512,982}",
+  "editor": "Mono, System - Default, Normal text size, limit 64",
+  "autocorrect_at_rest": true,
+  "right_click_at": {
+   "x_pt": 588.2,
+   "y_pt": 209.0,
+   "mark_top_px": 372,
+   "mark_cols_px": [
+    1050,
+    1303
+   ],
+   "row_cols_px": [
+    1050,
+    2253
+   ]
+  }
+ },
+ "offsets": {
+  "recieved": 68,
+  "sel_len": 18,
+  "second_sentence": 139,
+  "definately": 29
+ },
+ "frames": {
+  "mac-native-26-light-spell-s1-rest.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S1 at rest",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-26-light-spell-s1-rest-nospell.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S1 at rest",
+   "spell_check": false,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-26-light-spell-s2-focus.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S2 Focus Sentence",
+   "spell_check": true,
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, inside 'ready'"
+  },
+  "mac-native-26-light-spell-s2-focus-nospell.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S2 Focus Sentence",
+   "spell_check": false,
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, inside 'ready'"
+  },
+  "mac-native-26-light-spell-s3-syntax.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S3 Syntax highlight",
+   "spell_check": true,
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-26-light-spell-s3-syntax-nospell.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S3 Syntax highlight",
+   "spell_check": false,
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-26-light-spell-s4-selection.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S4 over a selection",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": "recieved the notes",
+   "caret": "end of the selection"
+  },
+  "mac-native-26-light-spell-s4-selection-nospell.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S4 over a selection",
+   "spell_check": false,
+   "focus": false,
+   "syntax": false,
+   "selection": "recieved the notes",
+   "caret": "end of the selection"
+  },
+  "mac-native-26-dark-spell-s1-rest.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S1 at rest",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-26-dark-spell-s1-rest-nospell.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S1 at rest",
+   "spell_check": false,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-26-dark-spell-s2-focus.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S2 Focus Sentence",
+   "spell_check": true,
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, inside 'ready'"
+  },
+  "mac-native-26-dark-spell-s2-focus-nospell.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S2 Focus Sentence",
+   "spell_check": false,
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, inside 'ready'"
+  },
+  "mac-native-26-dark-spell-s3-syntax.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S3 Syntax highlight",
+   "spell_check": true,
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-26-dark-spell-s3-syntax-nospell.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S3 Syntax highlight",
+   "spell_check": false,
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-26-dark-spell-s4-selection.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S4 over a selection",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": "recieved the notes",
+   "caret": "end of the selection"
+  },
+  "mac-native-26-dark-spell-s4-selection-nospell.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S4 over a selection",
+   "spell_check": false,
+   "focus": false,
+   "syntax": false,
+   "selection": "recieved the notes",
+   "caret": "end of the selection"
+  },
+  "mac-native-26-light-spell-s5-typing.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S5 caret in the word being typed",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "inside 'comittee', no space typed yet"
+  },
+  "mac-native-26-light-spell-s5-caret-away.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S5 the same word, the caret clicked away from it",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "clicked into the first body row"
+  },
+  "mac-native-26-light-spell-o2-teh-typed.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O2 'teh' typed, no space",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of 'teh'"
+  },
+  "mac-native-26-light-spell-o2-teh-space.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O2 'teh' with the space typed",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "after the space"
+  },
+  "mac-native-26-light-spell-o2-teh-backspace.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O2 one Backspace after 'teh'",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "after the Backspace"
+  },
+  "mac-native-26-light-spell-o2-recieve-typed.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O2 'recieve' typed, no space",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of 'recieve'"
+  },
+  "mac-native-26-light-spell-o2-recieve-space.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O2 'recieve' with the space typed",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "after the space"
+  },
+  "mac-native-26-light-spell-o2-recieve-backspace.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O2 one Backspace after 'recieve'",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "after the Backspace"
+  },
+  "mac-native-26-light-spell-s6-menu.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S6 the correction menu",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "right-click on the first misspelling at 588.2,209.0 pt"
+  },
+  "mac-native-26-light-spell-s5-space.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S5 the same word, a space typed after it",
+   "spell_check": true,
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "after the space"
+  }
+ }
+}

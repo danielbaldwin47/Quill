@@ -147,7 +147,7 @@ ok('a PR against anything but main is refused, and nothing is even offered', () 
 });
 
 ok('a worktree with untracked files is removed with --force, its line naming each', () => {
-  const dirty = ['?? shots/latency/bench-1757.json', '?? shots/latency/bench-1758.json', ' M quill/src/main.rs'];
+  const dirty = ['?? dev/shots/latency/bench-1757.json', '?? dev/shots/latency/bench-1758.json', ' M quill/src/main.rs'];
   const sc = base({ 'status.txt': `${dirty.join('\n')}\n` });
   const out = land(sc, 401, 402);
   const line = step(out, 'worktree');

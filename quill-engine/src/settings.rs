@@ -44,7 +44,7 @@ pub const SETTINGS_FILE: &str = "settings.toml";
 
 /// The Editor's step on the Design oracle's text-size ladder: step 5, whose em
 /// is 21.33 logical pixels, is the size iA Writer opens at
-/// ([`crate::typography`], `ref/ia/mac-native/NOTES.md` § 11).
+/// ([`crate::typography`], `dev/ref/ia/mac-native/NOTES.md` § 11).
 const STEP: u32 = 5;
 
 /// The type steps a writer may ask for: the fourteen rungs of the ladder, 0 to
@@ -961,7 +961,7 @@ impl Preview {
 /// The Template a Document is laid out in, and the three toggles that bend it.
 ///
 /// Headings are centred by default because that is what the Design oracle's
-/// own Modern does (`ref/ia/mac-native/NOTES.md` § State 16), and since #302
+/// own Modern does (`dev/ref/ia/mac-native/NOTES.md` § State 16), and since #302
 /// this toggle is the one thing that decides it under every Template;
 /// numbering them and indenting paragraphs are each something a writer asks
 /// for, so both start off.

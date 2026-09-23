@@ -4,8 +4,7 @@ Each ported Piece is its own feature ticket, closed by the owner's `hand test: p
 (`docs/agents/gate.md` § Feature tier); these are its checklists. `/to-spec` merges a Piece's
 checklist with the spec's additions into the spec's **Hand test** section, so the owner tests from
 that comment alone. The section opens with the install step, written for the branch's own worktree:
-`cd <the worktree's absolute path>`, then the three lines of `README.md` § Build, install and run
-the native app, then `pacman -Q quill-writer` — `makepkg` packages the checkout it runs in, so the worktree
+`cd <the worktree's absolute path>`, then the three lines of `README.md` § Install, then `pacman -Q quill-writer` — `makepkg` packages the checkout it runs in, so the worktree
 builds the branch and `pacman -Q` names the commit installed (#167). The worktree stays until
 `hand test: pass`. The earlier shape, `git checkout <branch>` in `~/repos/quill`, fails on a dirty
 tree, and #318's owner built and tested `main` (2026-09-11). The install step travels with the
@@ -15,7 +14,7 @@ steps wherever they are handed over — the spec's section, the PR body, the com
 of them, and a message without the install lines is walked on whatever `quill` was installed last
 (#397, 2026-09-12).
 
-**Page**: 1. Open `ref/sample.md`; the text sits in a measure of about 64 characters, centred, with
+**Page**: 1. Open `dev/ref/sample.md`; the text sits in a measure of about 64 characters, centred, with
 calm margins. 2. Resize the window narrower and wider; the measure adapts and the text never touches
 an edge.
 
@@ -83,7 +82,7 @@ stats return. 3. Open each menu, the Settings window and the Palette; every in-s
 reachable from a menu, Settings or the Palette, with its shortcut shown. 4.
 Open an empty Document; both bars stand, the stats bar reads zero words, the page between them is
 bare but for the caret — no placeholder, no prompt (`docs/design.md` row Empty document) — and
-nothing in the frame is waiting on text to fill in. 5. Open `ref/sample.md`; the stats bar reads
+nothing in the frame is waiting on text to fill in. 5. Open `dev/ref/sample.md`; the stats bar reads
 words, characters and reading time, and the word count is lower than `wc -w` gives, by the Markup
 the passage carries. 6. Click the bar; the Stats menu shows six checks with Words, Characters and
 Reading Time checked and Hide Statistics last. Check Sentences and Paragraphs; two cells appear in
@@ -108,6 +107,6 @@ disk agrees. 5. Drag the divider on the sidebar's right edge wider and narrower;
 resize arrow over it and the page follows live. Open a second window; its sidebar is at the same
 width. Relaunch; the width is kept. Double-click the divider; the sidebar is back at its default.
 
-**Latency**: 1. Open `shots/latency/doc10k.md` and type in the middle of it; the caret and glyph
+**Latency**: 1. Open `dev/shots/latency/doc10k.md` and type in the middle of it; the caret and glyph
 appear together with no visible lag. 2. Hold a key; repeat is smooth. 3. Quit and relaunch with that
 Document; the window is readable in well under a second.

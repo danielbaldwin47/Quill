@@ -1,8 +1,8 @@
 # Modern: the Sans, on Inter. The default Template.
 #
 # The papers and the inks are measured, not chosen. The dark page is
-# `ref/ia/mac-native/NOTES.md` § State 16: #101010, a step darker than the
-# Editor's own #1a1a1a. The light page is `ref/ia/mac-native/CAPTURE-2026-09-09.md`
+# `dev/ref/ia/mac-native/NOTES.md` § State 16: #101010, a step darker than the
+# Editor's own #1a1a1a. The light page is `dev/ref/ia/mac-native/CAPTURE-2026-09-09.md`
 # § "#261 — Preview", off `mac-native-20-light-preview-modern-full` and
 # `-split`: #fcfcfc paper carrying #1a1a1a ink. It is not the white this file
 # assumed while that capture was outstanding, and its ink is not the Editor's

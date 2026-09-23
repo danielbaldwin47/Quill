@@ -1,0 +1,384 @@
+{
+  "piece": "style",
+  "round": 3,
+  "winner": "theirs",
+  "margin": "clear",
+  "gap": "The struck run is not demoted at all: its glyphs measure #CCCCCC — the exact same hex as the unstruck 'the te' four cells to its right in the same row — and the 2px rule is also #CCCCCC. On the #113D52 selection fill that is 7.3:1 contrast, against B's 2.7:1 for its #7A7A78 struck run. A killed phrase therefore carries the full weight of live prose plus an extra full-strength horizontal bar, so it reads louder than the sentence it was cut from.",
+  "gapTheirs": "The selection fill (x 40–451) is offset one cell (~25.6px) to the left of the struck phrase's cells (rule x 67–473): the leading space is highlighted while the trailing 's' of 'odds' is not, leaving 22px of rule hanging off the fill's right edge onto bare #1A1A1A. A's fill and rule terminate on the same pixel (both 313). Secondarily B's rule centre sits 1.0px below the x-height centre (rows 44–45 against x-height 33–54) where A's sits 0.5px below.",
+  "verdict": "A draws a strikethrough that does not strike anything through: the dead phrase is inked identically to the living text beside it, so deleting a clause makes it heavier on the page, not lighter. That is the whole point of the mark and A misses it — a writer cutting a paragraph would look up to find the cut line competing with the keeper. B's grey tier at #7A7A78 retires the phrase properly and still survives the selection fill; its sins are a one-cell selection overhang and a rule half a pixel lower than A's, which are alignment complaints, not comprehension ones. B, clearly.",
+  "oursShot": "dev/shots/style/r3-select-dark-ours-crop.png",
+  "theirsShot": "dev/shots/style/r3-select-dark-theirs-crop.png",
+  "refSource": "dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: on-light from mac-native-24-light-style-all.png, on-dark from mac-native-24-dark-style-all.png, fillers-light from mac-native-24-light-style-list-fillers.png, focus-light from mac-native-24-light-style-focus-sentence.png, focus-dark from mac-native-24-dark-style-focus-sentence.png, syntax-light from mac-native-24-light-style-syntax.png, syntax-dark from mac-native-24-dark-style-syntax.png, select-light from mac-native-24-light-style-selection.png, select-dark from mac-native-24-dark-style-selection.png",
+  "builderNote": "",
+  "secondary": [
+    "Both rules are exactly 2px and hard-edged with zero antialiasing — neither shows the 4px/2px-high failure",
+    "Both rules stop inside the phrase's own cells with nothing bleeding either side (A ends at 313 on the 'odds' cell boundary; B spans cells 3–18 at 67–473)",
+    "A's type is ~1.6% larger: 26.0px cell advance and 23px x-height vs B's 25.6px and 22px — which is why A wraps a word earlier",
+    "Selection fill heights differ: A 74px (y4–77), B 72px (y4–75); both hard-cornered, no rounding, no edge AA",
+    "Fill hex is effectively identical (A #113D52, B #143C52) on the same #1A1A1A page, so the pick does not turn on selection colour",
+    "Both baselines land at y=54; A's glyphs simply sit 2px higher in the line box",
+    "B's leading struck 's' at x0–12 is also #7A7A78 on bare background, confirming the quiet tier is a text property and not an artefact of the selection fill"
+  ],
+  "opponent": "mac-native",
+  "build": {
+    "git": "37e92d4",
+    "binary": "9e9a12d9765737ae",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "on-light",
+      "ours": "dev/shots/style/r3-on-light-ours-crop.png",
+      "theirs": "dev/shots/style/r3-on-light-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-24-light-style-all.png",
+        "crop": [
+          680,
+          317,
+          1186,
+          66
+        ],
+        "ours": [
+          610,
+          214,
+          1186,
+          66
+        ]
+      },
+      "oursWhole": "dev/shots/style/r3-on-light-ours.png",
+      "blind": "dev/shots/blind/style/on-light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Character cell advance is 26.0px vs B's 25.5px (x-height ~22.8px vs ~21.9px) — 2% wider per glyph, so at any fixed column A holds roughly two fewer characters per line and wraps a word earlier than B; A's line runs to x=1182 of the 1186px frame while B's finishes at 1153, 29px of measure given away for nothing. A's glyph band also sits low in the 66px row: 14px above the ascender, 11px below the descender, against B's 13/14.",
+      "gapTheirs": "The rule is ~0.5px below the x-height centre — rule occupies rows 33–34 (centre y=34.0) while the 'e' band centres at y=33.47 — and both termini are antialiased, grey 220 at the left end and 234 at the right of the 'pretty much' run, so each strike fades out instead of stopping. A's two runs are 260px and 286px of solid 179 with zero soft pixels at any of the four ends, dead on the x-height centre (35.0 vs 35.0).",
+      "verdict": "These are the same design twice over — same 2px rule, same #B5B3B0, same 1px offset below the 'e' crossbar — so the argument comes down to who can hold a straight line. A can: four rule ends, four hard stops, the whole 546px of ink at exactly one grey value, centred on the x-height to the pixel. B's cells are fractional at 25.545px, and it shows at every terminus as a half-lit pixel dribbling off the end of the phrase, with the rule itself riding half a pixel low through the words. A pays for that discipline with a 2% fatter cell and an earlier wrap, which is a genuine cost and the reason this isn't a rout.",
+      "secondary": [
+        "Both 1186x66; identical palette: strike #B5B3B0, body #191919, ground #F7F7F7",
+        "Rule thickness exactly 2px in both — neither repeats a 4px error",
+        "Both rules run continuously across the interword space of 'pretty much' (A 286px/11 cells, B 281px/11 cells)",
+        "Neither rule overhangs the phrase: A spans cells 0-9 and 24-34 exactly; B the same within its fractional grid",
+        "Strike at #B5B3B0 on #F7F7F7 is ~1.9:1 contrast — readable only because the type is this large; B's smaller x-height makes the struck run measurably harder to re-read before deciding to cut it",
+        "Identical glyph rasterization for repeated letters in both (two 'i's in 'finished' diff to 0), so no subpixel jitter in either",
+        "Line-height cannot be judged from a single-row crop; the 14/11 vs 13/14 row asymmetry assumes the 66px crop is the line box"
+      ]
+    },
+    {
+      "name": "on-dark",
+      "ours": "dev/shots/style/r3-on-dark-ours-crop.png",
+      "theirs": "dev/shots/style/r3-on-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-24-dark-style-all.png",
+        "crop": [
+          680,
+          317,
+          1186,
+          66
+        ],
+        "ours": [
+          610,
+          214,
+          1186,
+          66
+        ]
+      },
+      "oursWhole": "dev/shots/style/r3-on-dark-ours.png",
+      "blind": "dev/shots/blind/style/on-dark",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The row hangs low in its 66px band: ink 14–54 leaves 14px above the ascenders but only 11px under the descenders (baseline at 46/66 = 70%), vs B's 13/14 split and baseline at 44/66 = 67%; set as a page, A's descenders crowd the next line's ascenders by ~3px more, and A's 1.6% larger cell (26.0 vs 25.6px advance) tightens the leading ratio to ~1.52 against B's ~1.55.",
+      "gapTheirs": "The strike rule under-draws its own phrase by exactly 2.0px at the tail — 254.0px inked for a 10-cell run that measures 256.0px (10 × 25.6), and 279.6 for an 11-cell run that measures 281.6 — and it sits ~0.5px below the x-height axis (rule centre y=34.0 against a 'p'-bowl mirror axis at y≈33.4), where A's rule is 260.0/286.0px, i.e. exactly 10.000 and 11.000 cells, centred dead on its axis at y=35.0.",
+      "verdict": "These are the same mark drawn twice, and nine tenths of it matches to the hex: same #7A7A78 strike over #CCCCCC body, same 2px rule, same run boundaries. A wins on the only thing left — its rule is exactly the phrase's cells wide and exactly on the x-height axis, while B's stops 2px early and rides half a pixel low, which is why B's rule crosses the 'e' of 'pretty' immediately under its crossbar and smears 4 contiguous grey rows where A smears 3. A pays for it with a line that hangs ~2px low in its own leading; that costs you a page's rhythm, but B's costs you the mark itself, and the mark is what this screen is about.",
+      "secondary": [
+        "Both images 1186x66, identical crop",
+        "Strike ink #7A7A78 and body #CCCCCC identical in both — no dimming/contrast difference to judge",
+        "Rule thickness 2.0px in both, no antialiasing on the rule's top/bottom edges — neither repeats the 4px-rule failure",
+        "A's rule ends are hard-edged (integral cell grid); B's are antialiased (#686866 / #2D2D2C) from fractional 25.6px positioning — cosmetically fine, but it's why B's endpoints land short",
+        "Rule origin spacing is 24 cells in both (A 624.0 = 24 x 26.0; B 614.4 = 24 x 25.6), so both rules start on the correct cell — only B's right terminal is wrong",
+        "A's line runs 19px wider (last ink x=1172 vs 1153), leaving 13px to the frame edge vs B's 32px; that's the wrap point, not a margin defect",
+        "No caret, selection fill, or heading marker visible in either crop — nothing to judge there"
+      ]
+    },
+    {
+      "name": "fillers-light",
+      "ours": "dev/shots/style/r3-fillers-light-ours-crop.png",
+      "theirs": "dev/shots/style/r3-fillers-light-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-24-light-style-list-fillers.png",
+        "crop": [
+          680,
+          317,
+          1186,
+          66
+        ],
+        "ours": [
+          610,
+          214,
+          1186,
+          66
+        ]
+      },
+      "oursWhole": "dev/shots/style/r3-fillers-light-ours.png",
+      "blind": "dev/shots/blind/style/fillers-light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The line's ink block sits ~1.5px low in the 66px row — 14.0px of air above the caps, 11.1px below the descenders (a 26% split imbalance), where A is 13.66/14.18, centred to within 0.5px; on top of that B's cell advances 26.0px against A's 25.6px (624 vs 614px measured over 24 cells), so the same 46-character row runs 19px longer (last ink at x=1172 vs 1153) and will wrap a word earlier at any fixed measure.",
+      "gapTheirs": "The strike rule rides half a pixel low: rule occupies rows 33–34 (centre 34.0) while the x-height band measures 22.78–44.13 (centre 33.46) — 0.54px below the x-height centre, against B's rule at rows 34–35 sitting dead on its 35.0 centre. That drop lands the rule exactly on the vee-junction of struck 'y' in 'Basically,' and 'pretty', clotting the joint into a blob, and pulls the mark toward the baseline so it reads a shade like a misplaced underline.",
+      "verdict": "These are the same screenshot with two different rounding bugs, and neither team should be proud. A gets the leading right and then hangs the strike half a pixel below the x-height centre, so every struck 'y' has its junction filled in — the one thing this view exists to show, and it's the thing that's off. B nails the rule where it belongs but sets the whole line 3px out of balance in its own row and pads the cell to 26.0px, which costs you a character per line for nothing. I pick B because a strike that is visibly wrong against the letters it crosses beats leading asymmetry you can only find with a ruler, since row edges are invisible and the offset is uniform down the page.",
+      "secondary": [
+        "Both 1186x66; rule is 2px, no antialiasing, hard edges in both",
+        "Colours identical: rule and struck text #b5b3b0, body #191919, background #f7f7f5 — no contrast advantage either way",
+        "Rule extent is exact in both: A 11-265 (255px = 10 cells x 25.6), B 12-271 (260px = 10 cells x 26.0); no bleed into the space either side",
+        "B's x-height is 22.3px vs A's 21.35px (+4.4%) inside only a +1.6% wider cell — B reads marginally larger but is the denser texture",
+        "Stem widths measure 5px in both; the two are the same typeface at ~4% different size",
+        "Struck grey at #b5b3b0 on #f7f7f5 is ~1.5:1 contrast in both — legible as 'demoted', but anyone proofreading a heavily struck paragraph will be squinting"
+      ]
+    },
+    {
+      "name": "focus-light",
+      "ours": "dev/shots/style/r3-focus-light-ours-crop.png",
+      "theirs": "dev/shots/style/r3-focus-light-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-24-light-style-focus-sentence.png",
+        "crop": [
+          680,
+          846,
+          1186,
+          66
+        ],
+        "ours": [
+          610,
+          214,
+          1186,
+          66
+        ]
+      },
+      "oursWhole": "dev/shots/style/r3-focus-light-ours.png",
+      "blind": "dev/shots/blind/style/focus-light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Least air: A packs 41px of ink (cap 30px, x-height 22px, baseline y=45) into the identical 66px row band against B's 38px (cap 28px, x-height 21px, baseline y=43), leaving 25px of clear band vs B's 28px — ~12% less breathing room per line — and its cell advance is 26.0px vs B's 25.6px, so the same sentence runs 1160px wide against 1143px and will wrap a word earlier every line.",
+      "gapTheirs": "The rule under-runs the phrase it is supposed to cover: B draws 254px over a 10-cell run that measures 10 x 25.6 = 256px, and 280px over an 11-cell run that measures 281.6px, so 2-3px of the final cell — the comma in 'Basically,', the 'h' in 'much' — is left unruled on both runs. A is cell-exact on both (260px = 10 x 26.0, 286px = 11 x 26.0, delta 0.0). B's rule also centres 0.5px below the x-height centre where A's lands dead on it.",
+      "verdict": "These are the same face at the same grey (#C6C4C2 ink, #F7F7F7 page) with the same 2px rule, so the win is won in the last three pixels. A's strike stops exactly where the phrase's cells stop; B's quits 2-3px early on both runs, which is the one thing you notice after a comma — the tail of the rule pulls up short of the mark it just struck, twice in one line. B is also carrying 9% more ink (10880 px vs 9974) with stems at 4-5px against A's 3-4px, so a line that is supposed to be out of focus refuses to get out of the way, and where B's 2px 'e' crossbar meets its rule you get a 4px slab that shuts the counter. A pays for this with 3px less air per line, which is real but is a density preference, not an error.",
+      "secondary": [
+        "Both rules are exactly 2 rows of pure #C6C4C2 with zero antialias straddle — no fuzzy 3px edge in either",
+        "Neither rule bleeds into the space before or after the phrase; the interword space inside 'pretty much' is correctly ruled in both",
+        "Struck runs are re-inked to the same tier as the surrounding dimmed text in both (#C6C4C2), so neither flags the strike by colour",
+        "A's rule centre offset from x-height centre: 0.0px; B's: 0.5px low",
+        "Both seat the row's ascender top at y=14; A's descender reaches y=54 vs B's y=51, so A sits 3px closer to the next line's ceiling",
+        "Antialias quality is a wash: 48 vs 47 distinct grey levels, 63.3% vs 62.2% pure-ink pixels",
+        "Single-row crops — caret, markers, gutter, selection fill and heading treatment are not visible and were not judged"
+      ]
+    },
+    {
+      "name": "focus-dark",
+      "ours": "dev/shots/style/r3-focus-dark-ours-crop.png",
+      "theirs": "dev/shots/style/r3-focus-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-24-dark-style-focus-sentence.png",
+        "crop": [
+          680,
+          846,
+          1186,
+          66
+        ],
+        "ours": [
+          610,
+          214,
+          1186,
+          66
+        ]
+      },
+      "oursWhole": "dev/shots/style/r3-focus-dark-ours.png",
+      "blind": "dev/shots/blind/style/focus-dark",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Cell advance is 26.0 px/char against B's 25.6 — 0.4 px per character, compounding to 19 px across this 45-char row (last ink at x=1172 vs B's 1153), leaving a 14 px right gutter against B's 33 px; at the same measure A wraps a word earlier, and its stems are hazier (antialias fringe/core 0.57 vs 0.53).",
+      "gapTheirs": "The 2 px rule seats 0.5 px high in the x-height band (10 px above / 9 px below, vs A's exact 10/10), so where it meets the 2 px crossbar of an `e` the two fuse into a 4 px unbroken slab that closes the letter's eye; A's fuse is 3 px and the eye survives.",
+      "verdict": "These are the same line twice, and the only thing worth judging is what the rule does to the letters it crosses — so the `e` in 'pretty' decides it. B's strike rides half a pixel high and welds itself to the crossbar into a 4 px block; the letter stops being an `e` and becomes a smear, and `e` is the letter you will strike most. A pays for that with a 0.4 px wider cell that costs you a word at the end of every line and pushes the comma to within 14 px of the frame. Neither dims the struck run at all — the ink is `#707070` struck and unstruck alike, so the rule is carrying the entire signal and had better be placed right.",
+      "secondary": [
+        "Rule thickness identical: 2 px in both, no 4 px regression in either",
+        "Rule spans exactly the phrase's cells in both (A 10x26.0=260 px, B 10x25.6=256 px); no bleed into the following space",
+        "Both carry the rule unbroken across the interior space of 'pretty much'",
+        "Struck ink = body ink = #707070 core in both; no 'quiet tier' re-inking visible on this row",
+        "A sets ~5% larger type: x-height 22 px vs 21 px, ascender-to-baseline 32 px vs 31 px",
+        "Baseline seats at y=45.5 in A, y=43.5 in B within the same 66 px row",
+        "Both leave 7 clear rows between the 't' crossbar and the rule — no collision there in either"
+      ]
+    },
+    {
+      "name": "syntax-light",
+      "ours": "dev/shots/style/r3-syntax-light-ours-crop.png",
+      "theirs": "dev/shots/style/r3-syntax-light-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-24-light-style-syntax.png",
+        "crop": [
+          680,
+          317,
+          1186,
+          66
+        ],
+        "ours": [
+          610,
+          214,
+          1186,
+          66
+        ]
+      },
+      "oursWhole": "dev/shots/style/r3-syntax-light-ours.png",
+      "blind": "dev/shots/blind/style/syntax-light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Cell advance 26.0 px vs B's 25.6 px (comma of 'finished,' centred at x=1168 vs 1149 from a shared origin — 45 characters run ~18 px / 1.6% wider). At a fixed measure that is one character in ~64, enough to throw the wrap a word earlier than B for the same text. Its stems are also lighter: the 'h' stem of 'the' integrates to 3.59 px of coverage vs B's 3.80 px, so the #191919 body reads a touch thinner despite A's larger glyphs.",
+      "gapTheirs": "The strike sits a pixel low. B's x-height runs 22.77→44.0 (centre 33.38) and its 2 px rule occupies rows 33–34, centre 34.0 — 0.6 px below centre; A's x-height runs 24.0→46.0 (centre 35.0) and its rule occupies 34–35, centre 35.0, error 0.0 px. B's horizontals are also sub-pixel-soft: the 't' crossbar of 'pretty' spreads over 5 rows (3 full + 2 partial) against A's clean 3, and the rule's end pixels carry partial alpha (26/66 and 12/66) instead of A's hard on/off.",
+      "verdict": "This is the same mark twice — same #B5B3B0 for the struck run and its rule, same 2 px thickness with no vertical antialiasing, same #191919 / #BB512A / #4675B5 on the same #F7F7F7 field, and in both the rule covers exactly the phrase's own cells and nothing either side. So it comes down to where the line lands and how hard the raster is, and there A is right and B is not: B's strike rides 0.6 px below the x-height centre, close enough to the lower bowls of 'e' and 'a' that it reads as a line drawn through the bottom of the word rather than across the middle of it, and its crossbars bleed into a fifth row. A pays for that crispness with a 26.0 px cell that will cost you a word at the end of a line. I would take the correctly-placed strike over the tighter measure, but nobody should pretend this is a wide gap.",
+      "secondary": [
+        "Palette is a dead heat: body #191919, struck run and rule both #B5B3B0, categories #BB512A and #4675B5, field #F7F7F7 — identical hex in both, no greyness argument available",
+        "Rule extent correct in both: 'pretty much' ruled 636–921 (11 × 26.0) in A and 625–905 (11 × 25.6) in B — flush to the phrase's cells, no overhang into the flanking space",
+        "The struck run's own trailing comma is inside the rule in both; the comma after 'finished' is correctly outside the blue Category and stays #191919 in both",
+        "A sets ~4% larger type at the same viewport: x-height 22.0 px (baseline 46.0) vs B's 21.2 px (baseline 44.0)",
+        "Neither shows the 4 px / 2 px-high rule failure — both are exactly 2 rows at full strength",
+        "B's rule endpoints are sub-pixel accurate (fractional alpha) where A's snap to whole pixels; truer position, softer terminal — a wash at this size",
+        "One row of body text is all the evidence there is: no caret, line-height, margin, focus-dim or selection fill to judge, so this verdict rests entirely on the mark and the raster"
+      ]
+    },
+    {
+      "name": "syntax-dark",
+      "ours": "dev/shots/style/r3-syntax-dark-ours-crop.png",
+      "theirs": "dev/shots/style/r3-syntax-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-24-dark-style-syntax.png",
+        "crop": [
+          680,
+          317,
+          1186,
+          66
+        ],
+        "ours": [
+          610,
+          214,
+          1186,
+          66
+        ]
+      },
+      "oursWhole": "dev/shots/style/r3-syntax-dark-ours.png",
+      "blind": "dev/shots/blind/style/syntax-dark",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Set 2.2% wider than B — cell advance 26.0px vs 25.45px (rule runs 260px/10 cells and 286px/11 cells vs B's 254 and 280). At the same 1186px viewport the identical five words reach x=1172 against B's x=1153, so A leaves 19px less right-hand air and its measure holds ~45.6 characters against B's ~46.6 — A breaks a word earlier on every full line.",
+      "gapTheirs": "The 2px rule is not on the x-height centre: measured off the flat top and foot serifs of the 'i' in 'Basically,', B's x-height runs 22.77→44.00 (centre 33.39) but the rule occupies rows 33–35 (centre 34.00) — 0.61px low, ~3% of x-height. A's x-height runs 24.00→46.00 (centre 35.00) with the rule at 34–36 (centre 35.00): 0.00px error. B's strike therefore rides under the bowls of 'e' and 'a' rather than through them.",
+      "verdict": "Same ink, same greys, same crisp 2px rule, same correct span — so this comes down to where the line sits on the letter, and B puts it 0.6px low, which is exactly the failure mode that lost the last round, just smaller. A's strike cuts the x-height dead centre and the struck words read as one continuous cancelled phrase; B's sags a hair, so 'pretty much' reads as letters with a line dragged under them rather than through them. A pays for that with a 2.2% wider set that costs about a character of measure per line — a real cost, but one you notice at the wrap, not at the word. Take A: the mark is the thing being judged here, and only A has it right.",
+      "secondary": [
+        "Colours identical in both: bg #1a1a1a, body #cccccc, struck+rule #7a7a78, orange #ce896d, blue #829ebf — nothing to choose on palette",
+        "Both hold the quiet grey over a Category colour on the struck run under Syntax highlight",
+        "Both rules are exactly 2 rows, #7a7a7a, no bleed into adjacent rows (sampled in the space inside 'pretty much')",
+        "Rule extent correct in both: 10 cells over 'Basically,', 11 over 'pretty much' incl. interior space, no overhang into flanking spaces",
+        "A is pixel-snapped vertically (ascender 14.00, x-height top 24.00, baseline 46.00 — all integers); B sits fractional (13.82 / 22.77 / 44.00), so B's serifs, crossbars and rule carry marginally more vertical antialiasing",
+        "A's x-height is 22.0px vs B's 21.2px at the same viewport — ~4% larger type on a dark ground",
+        "Left margin differs by 1px (rule starts x=12 in A, x=11 in B) — immaterial"
+      ]
+    },
+    {
+      "name": "select-light",
+      "ours": "dev/shots/style/r3-select-light-ours-crop.png",
+      "theirs": "dev/shots/style/r3-select-light-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-24-light-style-selection.png",
+        "crop": [
+          1572,
+          380,
+          490,
+          80
+        ],
+        "ours": [
+          1686,
+          280,
+          490,
+          80
+        ]
+      },
+      "oursWhole": "dev/shots/style/r3-select-light-ours.png",
+      "blind": "dev/shots/blind/style/select-light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No re-inking at all: the struck run and the untouched words beside it are both exactly #191919 — sampled across 2,576 pixels, the flagged 'odds' and the live 'the te' share one ink value. A demotes struck text to #B5B3B0, roughly 55% lighter than its #2B2B2B body ink. B's mark is therefore a 2px bar laid over full-weight text: a redaction, not a demotion.",
+      "gapTheirs": "The struck run is inked #B5B3B0 against the #CBEDF7 selection fill — a contrast ratio of 1.69:1, versus B's #191919 on #CCEDF8 at 14.26:1. The moment you select the flagged phrase, the words you are about to rewrite drop below even the 3:1 large-text floor and dissolve into the highlight; on the bare page that same grey is only 2.16:1 against #F7F7F7.",
+      "verdict": "A got the idea right and the execution wrong — the quiet tier is the correct instinct, but at 1.69:1 under a selection it stops being quiet and starts being illegible, and the fill lands one character cell left of the run it marks, stranding the final 's' of 'odds' outside the highlight on white. B gets the geometry honest: rule dead on the x-height centre, fill flush with the last glyph, every letter readable — and then refuses to tier anything, so a page of flagged phrases is just black text with black bars through it and nothing recedes. A selection state that misreports what you selected and greys the words out of reach is worse than a mark that shouts; you can work past loud, you cannot edit what you cannot see or trust. B, clearly — but its strike is doing half the job the mark was specified to do.",
+      "secondary": [
+        "A's fill spans x40–451 while the struck run spans x66–473: same 16-cell width, translated one ~26px cell left — it opens on the space before the 'A' and closes before the final 's'",
+        "B's fill spans x0–313, ending flush with the phrase's last cell at 313; no straddled glyph",
+        "Rule thickness identical at 2px in both — neither repeats the 4px error",
+        "Rule position: A's 2px band centres +0.5px below the 'o' x-height centre (rows 44–45 vs centre 44.0); B's is exact (rows 42–43, centre 42.5)",
+        "B's selection band is vertically off-centre: 18px above the ascender, 23px below the baseline on a 74px band; A's is 20/20 on 72px",
+        "Both rules run continuously through inter-word spaces inside the phrase and terminate within one sidebearing of the end glyph — neither bleeds past the run",
+        "Body ink: A #2B2B2B (13.2:1 on #F7F7F7), B #191919 (16.4:1) — B is the harder, less forgiving page",
+        "Cell pitch A ~25.6px vs B 26.0px; B sets ~1.6% wider and will break lines a word earlier",
+        "Antialiasing is comparable — 37% partial-coverage pixels in A, 40% in B; neither is stem-snapped or hinted into hardness",
+        "A's rule colour matches its struck ink exactly (#B5B3B0); B's likewise (#191919) — both keep rule and glyph on one value"
+      ]
+    },
+    {
+      "name": "select-dark",
+      "ours": "dev/shots/style/r3-select-dark-ours-crop.png",
+      "theirs": "dev/shots/style/r3-select-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-24-dark-style-selection.png",
+        "crop": [
+          1572,
+          380,
+          490,
+          80
+        ],
+        "ours": [
+          1686,
+          280,
+          490,
+          80
+        ]
+      },
+      "oursWhole": "dev/shots/style/r3-select-dark-ours.png",
+      "blind": "dev/shots/blind/style/select-dark",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The struck run is not demoted at all: its glyphs measure #CCCCCC — the exact same hex as the unstruck 'the te' four cells to its right in the same row — and the 2px rule is also #CCCCCC. On the #113D52 selection fill that is 7.3:1 contrast, against B's 2.7:1 for its #7A7A78 struck run. A killed phrase therefore carries the full weight of live prose plus an extra full-strength horizontal bar, so it reads louder than the sentence it was cut from.",
+      "gapTheirs": "The selection fill (x 40–451) is offset one cell (~25.6px) to the left of the struck phrase's cells (rule x 67–473): the leading space is highlighted while the trailing 's' of 'odds' is not, leaving 22px of rule hanging off the fill's right edge onto bare #1A1A1A. A's fill and rule terminate on the same pixel (both 313). Secondarily B's rule centre sits 1.0px below the x-height centre (rows 44–45 against x-height 33–54) where A's sits 0.5px below.",
+      "verdict": "A draws a strikethrough that does not strike anything through: the dead phrase is inked identically to the living text beside it, so deleting a clause makes it heavier on the page, not lighter. That is the whole point of the mark and A misses it — a writer cutting a paragraph would look up to find the cut line competing with the keeper. B's grey tier at #7A7A78 retires the phrase properly and still survives the selection fill; its sins are a one-cell selection overhang and a rule half a pixel lower than A's, which are alignment complaints, not comprehension ones. B, clearly.",
+      "secondary": [
+        "Both rules are exactly 2px and hard-edged with zero antialiasing — neither shows the 4px/2px-high failure",
+        "Both rules stop inside the phrase's own cells with nothing bleeding either side (A ends at 313 on the 'odds' cell boundary; B spans cells 3–18 at 67–473)",
+        "A's type is ~1.6% larger: 26.0px cell advance and 23px x-height vs B's 25.6px and 22px — which is why A wraps a word earlier",
+        "Selection fill heights differ: A 74px (y4–77), B 72px (y4–75); both hard-cornered, no rounding, no edge AA",
+        "Fill hex is effectively identical (A #113D52, B #143C52) on the same #1A1A1A page, so the pick does not turn on selection colour",
+        "Both baselines land at y=54; A's glyphs simply sit 2px higher in the line box",
+        "B's leading struck 's' at x0–12 is also #7A7A78 on bare background, confirming the quiet tier is a text property and not an artefact of the selection fill"
+      ]
+    }
+  ],
+  "at": "2026-09-11T05:11:43.890Z"
+}

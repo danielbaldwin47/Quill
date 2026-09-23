@@ -45,7 +45,7 @@ usage: tools/gate <command> [arguments]
                 ROUND_ONCE list in this script names), and — on the repo root
                 only — the citation rule (cite: every ADR NNNN, NOTES §,
                 VERDICTS § and design.md row cited in docs/design.md,
-                progress/state.json and shots/oracle/states.json resolves)
+                dev/progress/state.json and dev/shots/oracle/states.json resolves)
                 and the canonical-JSON rule (json: those two JSON files are
                 Node's JSON.stringify(v, null, 2) byte for byte), then cargo
                 clippy --all-targets -- -D warnings, cargo test with no display
@@ -63,9 +63,9 @@ usage: tools/gate <command> [arguments]
                 pass` or `gate check: fail (<step>)`.
 
   oracle <piece> [--force]
-                Freezes the Parity oracle for one Piece: the app in legacy/ shot
-                at every state shots/oracle/states.json lists for it, into
-                shots/oracle/<piece>/<state>.png with the fingerprint of what
+                Freezes the Parity oracle for one Piece: the app in dev/legacy/ shot
+                at every state dev/shots/oracle/states.json lists for it, into
+                dev/shots/oracle/<piece>/<state>.png with the fingerprint of what
                 produced them beside. Shoots nothing when those shots are
                 already the ones it would take; --force shoots them anyway. A
                 state with no Parity opponent is not this command's to freeze
@@ -90,7 +90,7 @@ usage: tools/gate <command> [arguments]
                 is the uinput write(2) to the presentation time GdkFrameTimings
                 gives for the frame carrying that key. The result, with its
                 accounting and the fingerprint of what produced it, is written
-                to shots/latency/bench-<regime>-<stamp>.json. Ends in `gate
+                to dev/shots/latency/bench-<regime>-<stamp>.json. Ends in `gate
                 bench <regime>: pass|fail (budget ...; oracle ...)`: 0 for pass,
                 1 for a budget miss, and 3 with `gate bench: refused (...)`
                 when there is no verdict to give — nothing measured, focus
@@ -103,7 +103,7 @@ usage: tools/gate <command> [arguments]
                 own result file; a run of several says one line per regime and
                 then one line for the run, which is pass only when every scored
                 regime in it cleared the budget, and writes what those lines say
-                to shots/latency/summary-<stamp>.json. tools/regimes.mjs marks
+                to dev/shots/latency/summary-<stamp>.json. tools/regimes.mjs marks
                 which regimes are scored (scored: false) and why; one that is
                 not still runs, is recorded and must account for its keys, and
                 its lines say informational rather than pass or fail. A regime
@@ -134,7 +134,7 @@ usage: tools/gate <command> [arguments]
                 line says so and names the output, mode and scale; results
                 are bench-panel-<regime>-<stamp>.json, marked informational
                 inside, and a run of several also writes
-                shots/latency/panel-summary-<stamp>.json, which `judge latency`
+                dev/shots/latency/panel-summary-<stamp>.json, which `judge latency`
                 does not read and refuses if it is handed one.
 
   shoot <piece> [state ...] | --pieces a,b | --all [--settings <path>]
@@ -142,7 +142,7 @@ usage: tools/gate <command> [arguments]
                 ours built and shot at every judged state of the Piece, or at
                 the states named, on the Gate's headless output, cut exactly as
                 judge cuts it, into target/gate/shoot/<piece>/ — never under
-                shots/, which is a round's. Every check judge makes before a
+                dev/shots/, which is a round's. Every check judge makes before a
                 window opens is made here, so a shot taken here is the shot
                 judge would take. Prints one line per state — the file, and
                 whether its pixels are the ones the latest round judged, which
@@ -170,12 +170,12 @@ usage: tools/gate <command> [arguments]
                 The Ticket tier's blind judging for one Piece: ours built and
                 shot at every judged state on a headless output of the Gate's
                 own, each shot paired with the frozen Parity oracle under
-                shots/blind/<piece>/<state>/ (the key goes to
+                dev/shots/blind/<piece>/<state>/ (the key goes to
                 $XDG_STATE_HOME/quill/blind-keys/), one fresh critic per pair —
                 every state shot first, then every critic at once, so a Piece
                 takes one critic's five or six minutes rather than one per
                 state — revealed, and written to
-                progress/rounds/<piece>-r<N>.json. A state whose shot of ours
+                dev/progress/rounds/<piece>-r<N>.json. A state whose shot of ours
                 and whose opponent are byte for byte what an earlier round's
                 critic was shown carries that round's verdict forward, marked
                 `carried` with the round it came from, and no critic is spent
@@ -185,7 +185,7 @@ usage: tools/gate <command> [arguments]
                 background and reads the last line from the log.
                 A state naming an opponent in states.json is paired against the
                 Design oracle instead: the rectangle it names in a capture under
-                ref/ia/shots/mac-native/ against the matching rectangle of ours,
+                dev/ref/ia/shots/mac-native/ against the matching rectangle of ours,
                 which is shot in Mono at the defaults' type so the two grids
                 compare cell for cell (ADR 0015). The round names the capture
                 and both rectangles.
@@ -212,7 +212,7 @@ usage: tools/gate <command> [arguments]
                 target/gate/judge-<piece>.log, printed when the run refuses.
                 latency is the one Piece with no picture to look at, so it is
                 judged by arithmetic instead: it reads the newest whole run
-                under shots/latency/, or the one --summary names, and is ours
+                under dev/shots/latency/, or the one --summary names, and is ours
                 when every regime cleared the budget and prose_end_of_draft beat
                 the oracle's own keystroke and cold-start numbers. Same round
                 file, same line, same four exit codes.
@@ -233,7 +233,7 @@ usage: tools/gate <command> [arguments]
                 assertions are read off. The pixels decide and the app is never
                 asked: on #108 the app believed its own caret was at x=0, so a
                 probe would have agreed with the defect in good faith. The
-                scripts are the `keys` entries of shots/oracle/states.json,
+                scripts are the `keys` entries of dev/shots/oracle/states.json,
                 beside the judged states, and a Piece may carry none. --shots
                 keeps each burst's capture as well, which is how the fixtures
                 under tools/keys-fixture were taken. Ends in `gate keys <piece>:
@@ -246,10 +246,10 @@ usage: tools/gate <command> [arguments]
                 printed when the run refuses.
 
   brief <piece>   The two files a judge reads, for the one Piece and nothing
-                else: its brief from progress/state.json — the id, the title,
+                else: its brief from dev/progress/state.json — the id, the title,
                 what the Piece is, and the `judge` string wrapped to 100
                 columns — then one block per judged state from
-                shots/oracle/states.json, naming the state's flag overrides
+                dev/shots/oracle/states.json, naming the state's flag overrides
                 over `defaults`, the oracle that arbitrates it (a `mac-native`
                 capture with the crop and ours' matching rectangle, ours' own
                 pixels where the state carries an `assert`, or the frozen
@@ -412,8 +412,8 @@ round_once() {
     return 1
 }
 
-# Every citation in docs/design.md, progress/state.json and
-# shots/oracle/states.json resolves: `ADR NNNN` to a file under docs/adr/,
+# Every citation in docs/design.md, dev/progress/state.json and
+# dev/shots/oracle/states.json resolves: `ADR NNNN` to a file under docs/adr/,
 # `NOTES § X` and `VERDICTS § X` to a heading of the capture notes (a bare
 # number is `State N`), and `design.md row <Name>` (or `rows <A>, <B> and <C>`)
 # to a row of docs/design.md § Rows. A `design.md row` followed by a lowercase
@@ -423,7 +423,7 @@ citations_resolve() {
     python3 - <<'PY'
 import glob, re, sys
 
-FILES = ["docs/design.md", "progress/state.json", "shots/oracle/states.json"]
+FILES = ["docs/design.md", "dev/progress/state.json", "dev/shots/oracle/states.json"]
 SECTION_END = r'[^,.;:)|"`\\\n]*'
 NUMBERED = re.compile(r"\d+")
 
@@ -464,8 +464,8 @@ def heading_resolves(section, heads):
             return True
     return False
 
-NOTES = headings("ref/ia/mac-native/NOTES.md")
-VERDICTS = headings("ref/ia/mac-native/VERDICTS.md")
+NOTES = headings("dev/ref/ia/mac-native/NOTES.md")
+VERDICTS = headings("dev/ref/ia/mac-native/VERDICTS.md")
 ROWS = rows()
 ADRS = {m.group(1) for p in glob.glob("docs/adr/*.md") for m in [re.match(r".*/(\d{4})-", p)] if m}
 
@@ -514,12 +514,12 @@ if unresolved:
 PY
 }
 
-# progress/state.json and shots/oracle/states.json are Node's
+# dev/progress/state.json and dev/shots/oracle/states.json are Node's
 # JSON.stringify(v, null, 2) byte for byte — the shape judge.mjs writes a
 # round in — so a scripted edit is a small diff and a hand edit is held to it.
 canonical_json() {
     local file status=0
-    for file in progress/state.json shots/oracle/states.json; do
+    for file in dev/progress/state.json dev/shots/oracle/states.json; do
         node -e '
 const fs = require("fs");
 const file = process.argv[1];
@@ -530,7 +530,7 @@ if (JSON.stringify(JSON.parse(raw), null, 2) + "\n" !== raw) {
 }' "$file" || status=1
     done
     [ "$status" -eq 0 ] && return 0
-    echo "progress/state.json and shots/oracle/states.json are Node's JSON.stringify(v, null, 2) plus a newline, byte for byte (docs/agents/gate.md)"
+    echo "dev/progress/state.json and dev/shots/oracle/states.json are Node's JSON.stringify(v, null, 2) plus a newline, byte for byte (docs/agents/gate.md)"
     return 1
 }
 
@@ -588,7 +588,7 @@ check() {
 case "${1-}" in
     check) shift; check "$@" ;;
     # The oracle reads a JSON state file, converts offsets and drives a browser
-    # through legacy/tools/shoot.mjs, so it is Node; the line it ends in is its
+    # through dev/legacy/tools/shoot.mjs, so it is Node; the line it ends in is its
     # own, in the shape the header above asks of every command here.
     oracle) shift; exec node "$ROOT/tools/oracle.mjs" "$@" ;;
     # The bench drives the compositor, a binary and /dev/uinput, and reads the
@@ -600,7 +600,7 @@ case "${1-}" in
     # reason the oracle is, and ends in its own line in the same shape.
     judge) shift; exec node "$ROOT/tools/judge.mjs" "$@" ;;
     # A judged shot with no critic: judge's own checks, build and cutting,
-    # into target/ rather than shots/, for looking before a critic is spent.
+    # into target/ rather than dev/shots/, for looking before a critic is spent.
     shoot) shift; exec node "$ROOT/tools/shoot.mjs" "$@" ;;
     # The one condition that types and then looks: it drives the compositor, a
     # binary and /dev/uinput as the bench does, and reads the pixels as judging

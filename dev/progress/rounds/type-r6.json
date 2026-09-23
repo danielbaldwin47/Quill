@@ -1,0 +1,118 @@
+{
+  "piece": "type",
+  "round": 6,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "Inline emphasis markers are set ~#7a7a7a against #1c1c1c body ink, where A sets them ~#9e9e9e — roughly half the tonal distance from the words. Mid-sentence the '*' bracketing *Nothing out there is ever in a hurry* and the '**' around **bottle** read as characters you have to skip past rather than scaffolding that recedes; A's lighter grey does the job A's own margin alignment fails at.",
+  "gapTheirs": "Block markers sit inside the text column instead of hanging: '#', '##' and '-' all start at x=622 device, so the heading and list words get shoved right — H1 'The Lighthouse' begins at x=673, H2 'What the sea keeps' at x=698, body at x=622. That is three different left edges in one column, a 51–77px (2–3 character cell) stagger, and the two headings do not even line up with each other. B holds a single flush edge at x=623 for body, both heading titles and list text, with '#' hung at 570 and '##' at 546 in the gutter.",
+  "verdict": "Same face, same #1c1c1c ink on #f9f9f9, same column width — so the whole argument is where the left edge lives, and A loses it. A hangs nothing: your eye tries to find the column and gets a ragged staircase of 622/673/698, which is exactly the jitter you feel scrolling a long draft without being able to name it. A also pairs the smaller face (advance 12.92 CSS px) with the looser pitch (38 CSS px, ratio 1.77) while B pairs the larger face (13.12) with 37px at 1.69 — a bigger size cannot take a smaller pitch on a one-pitch-per-step ladder, so A's pair is the one that misses its step. B's sins are colour, not structure, and colour is a one-line fix.",
+  "oursShot": "dev/shots/type/r6-duo-ours.png",
+  "theirsShot": "dev/shots/oracle/type/duo.png",
+  "refSource": "dev/shots/oracle/type/ — the Parity oracle frozen by tools/gate oracle type from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06; dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: mono from mac-native-11-dark-text-size-05.png",
+  "builderNote": "Round 6 re-runs round 5 with the type brief's ground clause removed, to find out whether that clause decided the round: the brief now names the ladder rows and the crop and says nothing about paper or ink colours (code review of #165).",
+  "secondary": [
+    "Pitch/size inversion: A 38px pitch on a 21.5px face (1.77), B 37px on 21.9px (1.69); the monotonic break means A's pitch overshoots its ladder step by ~1 CSS px",
+    "Caret: A #00B5FF (2.18:1 against the #f9f9f9 paper), B #AFE5FB (1.28:1) — both 3×full-pitch bars, but B's is close to invisible and you will hunt for your place mid-line",
+    "Both hold a clean baseline grid: blank line = exactly 2× pitch (152px in A, 148px in B), headings land on the same rhythm in both",
+    "Heading markers: A ~#9e9e9e, B ~#7a7a7a — B's darker grey is defensible in the gutter, indefensible inline",
+    "Headings are body-size bold in both (advance identical to body); no size step at all for H1 vs H2, only the marker count distinguishes them",
+    "B's larger face costs ~1 char per line (B breaks after 'the way', A fits 'the way she') but B still fits one more line of the piece in the same 1800px because of the tighter pitch",
+    "Italic is a true italic in both, same drawing, sitting correctly on the baseline; bold weight identical"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "1f2c527",
+    "binary": "2403f21e267730c0",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "duo",
+      "ours": "dev/shots/type/r6-duo-ours.png",
+      "theirs": "dev/shots/oracle/type/duo.png",
+      "blind": "dev/shots/blind/type/duo",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Inline emphasis markers are set ~#7a7a7a against #1c1c1c body ink, where A sets them ~#9e9e9e — roughly half the tonal distance from the words. Mid-sentence the '*' bracketing *Nothing out there is ever in a hurry* and the '**' around **bottle** read as characters you have to skip past rather than scaffolding that recedes; A's lighter grey does the job A's own margin alignment fails at.",
+      "gapTheirs": "Block markers sit inside the text column instead of hanging: '#', '##' and '-' all start at x=622 device, so the heading and list words get shoved right — H1 'The Lighthouse' begins at x=673, H2 'What the sea keeps' at x=698, body at x=622. That is three different left edges in one column, a 51–77px (2–3 character cell) stagger, and the two headings do not even line up with each other. B holds a single flush edge at x=623 for body, both heading titles and list text, with '#' hung at 570 and '##' at 546 in the gutter.",
+      "verdict": "Same face, same #1c1c1c ink on #f9f9f9, same column width — so the whole argument is where the left edge lives, and A loses it. A hangs nothing: your eye tries to find the column and gets a ragged staircase of 622/673/698, which is exactly the jitter you feel scrolling a long draft without being able to name it. A also pairs the smaller face (advance 12.92 CSS px) with the looser pitch (38 CSS px, ratio 1.77) while B pairs the larger face (13.12) with 37px at 1.69 — a bigger size cannot take a smaller pitch on a one-pitch-per-step ladder, so A's pair is the one that misses its step. B's sins are colour, not structure, and colour is a one-line fix.",
+      "secondary": [
+        "Pitch/size inversion: A 38px pitch on a 21.5px face (1.77), B 37px on 21.9px (1.69); the monotonic break means A's pitch overshoots its ladder step by ~1 CSS px",
+        "Caret: A #00B5FF (2.18:1 against the #f9f9f9 paper), B #AFE5FB (1.28:1) — both 3×full-pitch bars, but B's is close to invisible and you will hunt for your place mid-line",
+        "Both hold a clean baseline grid: blank line = exactly 2× pitch (152px in A, 148px in B), headings land on the same rhythm in both",
+        "Heading markers: A ~#9e9e9e, B ~#7a7a7a — B's darker grey is defensible in the gutter, indefensible inline",
+        "Headings are body-size bold in both (advance identical to body); no size step at all for H1 vs H2, only the marker count distinguishes them",
+        "B's larger face costs ~1 char per line (B breaks after 'the way', A fits 'the way she') but B still fits one more line of the piece in the same 1800px because of the tighter pitch",
+        "Italic is a true italic in both, same drawing, sitting correctly on the baseline; bold weight identical"
+      ]
+    },
+    {
+      "name": "quattro",
+      "ours": "dev/shots/type/r6-quattro-ours.png",
+      "theirs": "dev/shots/oracle/type/quattro.png",
+      "blind": "dev/shots/blind/type/quattro",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "A's syntax markers are #7A7A7A (~4.1:1 on #F9F9F9) against B's #9E9E9E (~2.6:1) — one greyscale step louder, so the `**` bracketing \"bottle\" and the `*…*` around the italic clause carry visible ink inside the sentence instead of ghosting behind it; A also sets 74px pitch (37 CSS) against B's 76px (38 CSS) at identical cap height, i.e. ~1.76 vs ~1.81, the denser of the two.",
+      "gapTheirs": "B breaks the flush left edge four ways: body text at x=622, h1 text at 667, h2 text at 691, list text at 667 (device px; 22–35 CSS px of drift) because the `#`, `##` and `-` sit in the flow at x=621–627 instead of hanging. A holds every text edge at x=623 and hangs the markers out to 570 / 546 / 576. B also uses two different greys for the same class of mark — #9E9E9E for `#`/`##`/`*`/`**` but #7A7A7A for the list dash.",
+      "verdict": "Both are on a clean grid — A locks to 74px, B to 76px, blank lines are exactly 2× pitch in both, headings get the same air above and below — so this comes down to the left edge, and B's is a staircase: your eye starts a paragraph at one x, a heading 45px right of it, an H2 69px right of it. A hangs the hashes and dashes into the margin and gives you one edge to write down, which is the whole point of the gutter. A pays for it with markers a step too dark — the `**` around \"bottle\" reads as content — but a noisy asterisk is a smaller tax than a column that won't stand still.",
+      "secondary": [
+        "Type size identical: cap height 30 device px, ascender-to-descender 41 px, both images",
+        "Pitch differs 74 vs 76 device px at identical size, so one of the two misses its own ladder step; the pixels don't say which",
+        "A is ~2% looser tracked: 22.97 vs 22.53 device px per character over the same 66-advance run — 69 vs 71 characters on line 1",
+        "Measure is effectively equal: A body 623→2245 max, B 622→2255 max",
+        "Caret identical in both: 6 device px (3 CSS) wide, height exactly one line pitch (74 / 76), same cyan",
+        "Bold renders as a true bold weight and the italic clause as true italic in both — no synthesised slant either side",
+        "Both keep list items at plain pitch with no extra gap between bullets"
+      ]
+    },
+    {
+      "name": "mono",
+      "ours": "dev/shots/type/r6-mono-ours-crop.png",
+      "theirs": "dev/shots/type/r6-mono-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-11-dark-text-size-05.png",
+        "crop": [
+          630,
+          870,
+          1760,
+          520
+        ],
+        "ours": [
+          560,
+          135,
+          1760,
+          520
+        ]
+      },
+      "oursWhole": "dev/shots/type/r6-mono-ours.png",
+      "blind": "dev/shots/blind/type/mono",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Body ink is #1c1c1c on a #f9f9f9 field — 15.3:1, essentially maximum black on 98% white, where B's #cdcdcc on #1a1b1a sits at 11.0:1. It is a glare slab for a four-hour drafting session; the ink wants softening toward ~#2e2e2e, and A's grey markers land at 3.90:1, just under the 4.5:1 AA floor.",
+      "gapTheirs": "Markup markers are rendered at exactly the body ink value — the `#` and both `*` sample #cdcdcc, byte-identical to the prose #cdcdcc (0 delta), and the `#` is bold along with the heading. A demotes the same markers to #7a7a7a against #1c1c1c text, roughly 55% of the text's luminance contrast (3.9:1 vs 15.3:1).",
+      "verdict": "In B the title reads as a title that literally starts with a hash, and the line reads 'time. *Nothing out there is ever in a hurry,* her father' with two live asterisks sitting in the sentence at full prose weight — the syntax is competing with the writing instead of getting out of its way, which is the one job a markdown type stack has. A greys the same markers to #7a7a7a so the `#` falls back into the margin and the asterisks bracket the italic without joining it. B compounds it with a fractional line pitch: baselines at 194/268/341/414/487 give 74/73/73/73px against A's exact 74/74/74/74, so the column drifts a pixel a line and the rhythm never quite locks. And B's ink mass runs 7.3% heavier per em than A's despite a 1.6% smaller advance (25.02 vs 25.41px) — light-on-dark bloom left uncompensated, when dark mode needs the weight taken down, not up.",
+      "secondary": [
+        "Both crops 1760x520; identical typeface, hanging markers at x=10, text left edge x=63 (A) / x=62 (B)",
+        "Advance per char: A 25.41px vs B 25.02px — B ~1.6% smaller at the same viewport, fitting ~64 ch/line vs A's ~62",
+        "Line-height ratio effectively identical: A 74/42.4 = 1.747, B 73.25/41.7 = 1.757",
+        "Blank line before body is exactly 2 pitches in both (A 147.5px, B 146px) — neither wastes or shortchanges the gap",
+        "A's glyph bands measure 33px tall vs B's 31px; B's stems render visibly softer/blurrier at 4x zoom, A's snap cleanly",
+        "B's background #1a1b1a carries a faint green cast (max chroma 0.78%); A is perfectly neutral (chroma 0)",
+        "Neither crop shows a caret, so caret weight and colour could not be judged",
+        "Heading is size-matched to body in both, differentiated by weight only — correct in both, not a differentiator",
+        "Cannot confirm a ladder-step miss for either size without reading docs/design.md, which was out of scope; no step violation is claimed"
+      ]
+    }
+  ],
+  "at": "2026-08-31T05:09:03.814Z"
+}

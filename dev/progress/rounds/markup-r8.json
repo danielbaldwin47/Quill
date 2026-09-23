@@ -1,0 +1,72 @@
+{
+  "piece": "markup",
+  "round": 8,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "A gives the blockquote no block-level affordance at all — no rule, no tint, no indent — signalling it only with a ~17px-wide '>' in the gutter, where B draws a 3px #BFBFBF rule down the quote's full 143px height; and A's markers are all #7A7A7A, 24 luminance steps darker than B's #9E9E9E on '#', '##' and '>', so the hung marks still register in peripheral vision instead of dissolving.",
+  "gapTheirs": "B sets every marker inline, so the text's left edge lands on four different x positions on one screen — paragraph 673, bullet/h1 text 721, h2 text 744, ordered-list text 747 (a 74px @2x ≈ 37 CSS px swing) — and the blockquote's wrapped line falls back to 676 while its own first line starts at 721, a 45px break inside a single quote. A holds every line at 673±2px regardless of block type.",
+  "verdict": "A hangs every marker into the gutter and keeps one dead-flush text column at x=673 for headings, quotes, bullets, numbers and prose alike; B leaves them inline and the paragraph edge staggers by up to 37 CSS px line to line, which is exactly the jitter you feel as 'the page won't sit still' after two hours. B's own blockquote can't hold its indent — line one at 721, line two at 676 — so the block it drew a rule around reads as ragged. And B's caret is 6px of #00B5FF, 72px tall: 50% wider, 33% taller and the single loudest object in an otherwise near-monochrome page, against A's 4px #1C1C1C caret at text colour. A's missing quote rule is a real omission, but a thin grey bar doesn't buy back a left edge that moves.",
+  "oursShot": "dev/shots/markup/r8-light-ours.png",
+  "theirsShot": "dev/shots/oracle/markup/light.png",
+  "refSource": "dev/shots/oracle/markup/ — the Parity oracle frozen by tools/gate oracle markup from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs adf473b575198cc3",
+  "builderNote": "",
+  "secondary": [
+    "B uses two greys for one job: #9E9E9E for #/##/> but #7A7A7A for '-' and '1.' — no consistent marker tier",
+    "A's blockquote wrap aligns at 674 with its first line at 673; hanging indent is done correctly",
+    "caret: A x=1906-1909 (4px @2x, #1C1C1C, 54px tall) vs B x=1912-1917 (6px, #00B5FF, 72px tall)",
+    "identical in both: body #1C1C1C on ~#F7F7F7, 72px @2x line spacing (~36 CSS px), ~1532px measure, same `NNE 22°` code chip and code-block fill",
+    "B's '##' costs two glyph widths of the text column, so h2 text starts 23px right of h1 text — heading levels don't share a left edge"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "edeb701",
+    "binary": "516ad2290f388213"
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "dev/shots/markup/r8-light-ours.png",
+      "theirs": "dev/shots/oracle/markup/light.png",
+      "blind": "dev/shots/blind/markup/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "A gives the blockquote no block-level affordance at all — no rule, no tint, no indent — signalling it only with a ~17px-wide '>' in the gutter, where B draws a 3px #BFBFBF rule down the quote's full 143px height; and A's markers are all #7A7A7A, 24 luminance steps darker than B's #9E9E9E on '#', '##' and '>', so the hung marks still register in peripheral vision instead of dissolving.",
+      "gapTheirs": "B sets every marker inline, so the text's left edge lands on four different x positions on one screen — paragraph 673, bullet/h1 text 721, h2 text 744, ordered-list text 747 (a 74px @2x ≈ 37 CSS px swing) — and the blockquote's wrapped line falls back to 676 while its own first line starts at 721, a 45px break inside a single quote. A holds every line at 673±2px regardless of block type.",
+      "verdict": "A hangs every marker into the gutter and keeps one dead-flush text column at x=673 for headings, quotes, bullets, numbers and prose alike; B leaves them inline and the paragraph edge staggers by up to 37 CSS px line to line, which is exactly the jitter you feel as 'the page won't sit still' after two hours. B's own blockquote can't hold its indent — line one at 721, line two at 676 — so the block it drew a rule around reads as ragged. And B's caret is 6px of #00B5FF, 72px tall: 50% wider, 33% taller and the single loudest object in an otherwise near-monochrome page, against A's 4px #1C1C1C caret at text colour. A's missing quote rule is a real omission, but a thin grey bar doesn't buy back a left edge that moves.",
+      "secondary": [
+        "B uses two greys for one job: #9E9E9E for #/##/> but #7A7A7A for '-' and '1.' — no consistent marker tier",
+        "A's blockquote wrap aligns at 674 with its first line at 673; hanging indent is done correctly",
+        "caret: A x=1906-1909 (4px @2x, #1C1C1C, 54px tall) vs B x=1912-1917 (6px, #00B5FF, 72px tall)",
+        "identical in both: body #1C1C1C on ~#F7F7F7, 72px @2x line spacing (~36 CSS px), ~1532px measure, same `NNE 22°` code chip and code-block fill",
+        "B's '##' costs two glyph widths of the text column, so h2 text starts 23px right of h1 text — heading levels don't share a left edge"
+      ]
+    },
+    {
+      "name": "dark",
+      "ours": "dev/shots/markup/r8-dark-ours.png",
+      "theirs": "dev/shots/oracle/markup/dark.png",
+      "blind": "dev/shots/blind/markup/dark",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No blockquote affordance at all: A draws a 4px vertical rule (#494949) down the whole quote block; B gives the quote the identical left edge (674px), identical colour (#1C1C1C) and identical size as body copy, so its wrapped second line is pixel-indistinguishable from a paragraph and the only evidence it is quoted is one grey '>' in the gutter of line 1.",
+      "gapTheirs": "No hanging markers: markers sit at the margin (x=673) and push body text inward, so the prose has three different left edges — 673px paragraphs, 721px heading/list/quote text, 747px ordered-list text (74px ≈ 3 characters of rag) — and the blockquote's wrapped line snaps back left by 45px (line 1 starts 721, line 2 starts 674), i.e. the paragraph physically shifts sideways the moment you type '## ' or '1. '. B holds every body line at 673±2px and hangs '#', '##', '>', '-', '1.' out into the gutter at 600–630px.",
+      "verdict": "A's markers are the wrong citizens of the left margin — it aligns the syntax and lets the sentences wander, so heading text, list text and ordered-list text each land on a different column and the quote jumps 45px left when it wraps. That is exactly the twitch a writer feels: type a marker, watch the line you were reading slide. B puts the markers in the gutter and never moves the text, and it does it with more separation too — body at 15.9:1 contrast against markers at 4:1, versus A's 10.9:1 body against 4.4:1 markers. B's failure is real but narrower: it forgot the quote entirely, and A's 6px cyan (#00B5FF) full-line-height caret is a lit block sitting in the leading, not a caret.",
+      "secondary": [
+        "Both fail heading hierarchy: H1 and H2 glyph bands are 37–39px, identical to the 37–38px body — bold weight only, no size step, so '# The Lighthouse' and '## What the sea keeps' are the same typographic rank",
+        "Caret: A 6px x 72px (full line box) #00B5FF; B 4px x 54px (em box) #1C1C1C matching text",
+        "Line pitch identical at 72px in both; block spacing after H1 identical at 144px",
+        "B's gutter markers are right-aligned but the marker-to-text gap drifts 26px (#, ##) to 37px (1.) — 11px of inconsistency in the gutter",
+        "Emphasis markers dimmed comparably: A asterisks #808080 vs #CCCCCC text; B asterisks #7A7A7A vs #1C1C1C text",
+        "Inline code chip nearly identical in both (backticks kept inside the fill); A's chip carries visibly more trailing padding after the closing backtick",
+        "Code-fence panel contrast is 10/255 off background in both (A #232323 on #1A1A1A, B ~#EFEFEF on #F9F9F9) — barely a panel in either"
+      ]
+    }
+  ],
+  "at": "2026-08-29T03:40:45.996Z"
+}

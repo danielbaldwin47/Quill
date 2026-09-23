@@ -20,7 +20,7 @@
 //! Editor's size ladder, and Quill's Preview scales by `[preview] zoom` alone
 //! (`quill::preview`, `quill::column`). That is
 //! [ADR 0019](https://github.com/danielbaldwin47/Quill/blob/main/docs/adr/0019-a-template-starts-from-ia-and-is-then-quills-own.md)'s
-//! rule, and it is not a port of iA's: `ref/ia/mac-native/CAPTURE-2026-09-09.md`
+//! rule, and it is not a port of iA's: `dev/ref/ia/mac-native/CAPTURE-2026-09-09.md`
 //! § "#261 — Preview" measured that iA's Web preview does follow the editor's
 //! size, so nobody need measure it again.
 //!
@@ -336,8 +336,8 @@ mod tests {
         assert_eq!(modern.faces.heading.family, "Inter");
         // Inter carries its own italic, so nothing names one for it.
         assert_eq!(modern.faces.body.italic, None);
-        // `ref/ia/mac-native/NOTES.md` § State 16 for the dark page,
-        // `ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview" for the
+        // `dev/ref/ia/mac-native/NOTES.md` § State 16 for the dark page,
+        // `dev/ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview" for the
         // light one: #fcfcfc paper on #1a1a1a ink, neither of them the white
         // and the Editor ink this file assumed before that capture landed.
         assert_eq!(modern.dark.paper, Colour::from_hex("#101010"));
@@ -351,7 +351,7 @@ mod tests {
     fn classic_is_source_serif_4_spaced_and_derived_from_the_manuscript_em() {
         let classic = built_in("classic").expect("a built-in id");
         assert_eq!(classic.faces.body.family, "Source Serif 4");
-        // `ref/ia/mac-native/NOTES.md` § State 23: no iA Template indents a
+        // `dev/ref/ia/mac-native/NOTES.md` § State 23: no iA Template indents a
         // first line, and Classic's cap height wants 1.0425 × the Editor's em
         // on Source Serif 4 (`classic.toml`, which shows the working).
         assert_eq!(classic.paragraphs, Paragraphs::Spaced);
@@ -373,7 +373,7 @@ mod tests {
         );
     }
 
-    /// A Template size in points, in the device pixels `ref/ia/mac-native`
+    /// A Template size in points, in the device pixels `dev/ref/ia/mac-native`
     /// measures and every judged shot is taken at: the 96 dpi
     /// [`crate::render`] converts a Template's points by, over the backing
     /// scale 2 of the judged stage.
