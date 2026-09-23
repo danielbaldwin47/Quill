@@ -362,6 +362,10 @@ type Aim = Rc<dyn Fn() -> Option<Onto>>;
 /// press's hit step is drawn on; heads and the empty-Pinned prose carry none.
 const ORG_LINE_CLASS: &str = "lib-org-line";
 
+/// The toggle that shuts the pane, which stands outside the pane's `.library`
+/// root ([`Sidebar::toggle`]) and takes the head buttons' look from this.
+const TOGGLE_CLASS: &str = "lib-toggle";
+
 /// How long the field waits after a keystroke before it searches.
 ///
 /// A content search reads every shown file whose name did not match, so the
@@ -518,12 +522,14 @@ pub fn stylesheet(ground: Ground) -> String {
          .library .lib-icon {{ color: {secondary}; }}\n\
          .library .lib-folder-icon {{ color: {accent}; }}\n\
          .library .lib-changed {{ color: {WARN}; }}\n\
-         .library button.lib-btn {{\n\
+         .library button.lib-btn, .{TOGGLE_CLASS} button.lib-btn {{\n\
          \x20 background: none; border: none; box-shadow: none; outline: none;\n\
          \x20 min-height: 0; min-width: 0; padding: 0;\n\
          \x20 border-radius: {BUTTON_RADIUS}px; color: {dim};\n\
          }}\n\
-         .library button.lib-btn:hover {{ background-color: {hit}; color: {ink}; }}\n\
+         .library button.lib-btn:hover, .{TOGGLE_CLASS} button.lib-btn:hover {{\n\
+         \x20 background-color: {hit}; color: {ink};\n\
+         }}\n\
          .library button.lib-offer {{\n\
          \x20 font-size: {META_PX}px; padding: 0 {OFFER_PAD}px;\n\
          }}\n\
@@ -678,6 +684,11 @@ pub struct Sidebar {
     /// out again (#485). It is the whole overlay that slides, since an
     /// overlay whose pane is away would still take the divider's room.
     frame: gtk::Revealer,
+    /// The toggle that shuts the pane ([`Sidebar::toggle`]), which stands
+    /// over the window where the Organizer's head leaves room for it rather
+    /// than in the head, so that the slide never carries it from under the
+    /// pointer that pressed it (#485).
+    toggle: gtk::Box,
     root: gtk::Box,
     /// The Organizer's column, whose width [`Sidebar::set_width`] keeps at
     /// [`organizer_width`] of the pane's.
@@ -918,8 +929,19 @@ impl Sidebar {
             .child(&overlay)
             .hexpand(false)
             .build();
+        // Stood exactly where the Organizer's head would hold it, so the
+        // pane at rest draws as it did with the toggle inside it.
+        let toggle = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        toggle.add_css_class(TOGGLE_CLASS);
+        toggle.set_height_request(HEAD_HEIGHT);
+        toggle.set_margin_start(HEAD_LEFT);
+        toggle.set_halign(gtk::Align::Start);
+        toggle.set_valign(gtk::Align::Start);
+        toggle.append(&button(panel_icon, "win.library.toggle"));
+        toggle.set_visible(false);
         let sidebar = Self {
             frame,
+            toggle,
             divider,
             root,
             organizer,
@@ -978,6 +1000,8 @@ impl Sidebar {
                 f64::from(under.1),
             );
         });
+        let toggle = sidebar.toggle.clone();
+        sidebar.connect_on_screen(move |on_screen| toggle.set_visible(on_screen));
         sidebar.wire();
         sidebar
     }
@@ -1017,6 +1041,28 @@ impl Sidebar {
     #[must_use]
     pub fn widget(&self) -> &gtk::Widget {
         self.frame.upcast_ref()
+    }
+
+    /// The toggle that shuts the pane, to stand over the window's top left
+    /// corner, above the pane's head: shown while any of the pane is on
+    /// screen, so it stays where it was pressed through the slide either way.
+    #[must_use]
+    pub fn toggle(&self) -> &gtk::Widget {
+        self.toggle.upcast_ref()
+    }
+
+    /// Runs `f` with whether any of the pane is on screen, each time that may
+    /// have changed: as soon as it is asked in, and not until its slide out
+    /// has ended.
+    pub fn connect_on_screen(&self, f: impl Fn(bool) + 'static) {
+        let f = Rc::new(f);
+        for property in ["reveal-child", "child-revealed"] {
+            let f = f.clone();
+            self.frame
+                .connect_notify_local(Some(property), move |frame, _| {
+                    f(frame.reveals_child() || frame.is_child_revealed());
+                });
+        }
     }
 
     /// Gives the pane its window, which is what a row opens a Document in,
@@ -2988,12 +3034,11 @@ fn head(title: &gtk::Label) -> gtk::Box {
     head
 }
 
-/// The Organizer's head: the toggle that shuts the pane, alone.
+/// The Organizer's head: room for the toggle that shuts the pane, which
+/// stands over it from outside the pane ([`Sidebar::toggle`]).
 fn organizer_head() -> gtk::Box {
     let head = gtk::Box::new(gtk::Orientation::Horizontal, HEAD_GAP);
     head.set_height_request(HEAD_HEIGHT);
-    head.set_margin_start(HEAD_LEFT);
-    head.append(&button(panel_icon, "win.library.toggle"));
     head
 }
 
