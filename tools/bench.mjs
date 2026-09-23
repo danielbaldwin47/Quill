@@ -460,7 +460,7 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
     // at the regime's pace stay, because they are first touch; when the launch is not quiet after
     // them, pairs of a letter and its Backspace top them up until it is. So the last warm-up key is
     // always the regime's pace and one capture settle before key 0, as it was before the wait.
-    const settledAt = await saidBy(ours, 'settled', LAUNCH_WAIT_MS);
+    const settledAt = process.env.BENCH_NO_WAIT ? { from_exec_ms: null } : await saidBy(ours, 'settled', LAUNCH_WAIT_MS);
     if (!settledAt) {
       throw new Error(`the app did not say its launch was settled within ${LAUNCH_WAIT_MS / 1000} s, `
         + 'so nothing was typed');
@@ -476,7 +476,7 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
     }
     const held = () => stage.holds(ours.address);
     const warming = await typeKeys(injector, warm, held,
-      { enough: { from: first.keys, step: 2, met: () => launchSaid(ours.said(), 'quiet') !== null } });
+      { enough: { from: first.keys, step: 2, met: () => Boolean(process.env.BENCH_NO_WAIT) || launchSaid(ours.said(), 'quiet') !== null } });
     if (!warming.lost && !warming.met) {
       throw new Error(`the app's launch was not quiet after ${first.keys} warm-up keys and `
         + `${TOP_UP_MS / 1000} s of top-ups, so its first measured keys would have carried it`);

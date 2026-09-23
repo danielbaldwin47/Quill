@@ -1,0 +1,8 @@
+#!/bin/bash
+cd /home/diggle/repos/quill/.claude/worktrees/bench-launch-495
+start=$(date +%s.%N)
+tools/gate bench --all > "/home/diggle/.claude/jobs/1a4897df/tmp/runs495/all1.out" 2> "/home/diggle/.claude/jobs/1a4897df/tmp/runs495/all1.err"
+code=$?
+end=$(date +%s.%N)
+cp target/gate/bench.log "/home/diggle/.claude/jobs/1a4897df/tmp/runs495/all1.log"
+echo "exit $code, wall $(awk "BEGIN{print $end - $start}") s" > "/home/diggle/.claude/jobs/1a4897df/tmp/runs495/all1.done"

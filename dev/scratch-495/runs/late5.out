@@ -1,0 +1,2 @@
+gate bench prose_end_of_draft: pass — mean 2.37 ms, worst 4.4 ms, p50 2.25 ms, p99 4.11 ms, cold 185.15 ms
+gate bench --regimes prose_end_of_draft: pass — 1 of 1 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)

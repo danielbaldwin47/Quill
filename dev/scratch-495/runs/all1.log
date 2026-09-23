@@ -1,0 +1,80 @@
+gate bench — 2026-09-23T20:10:36.208Z
+gate bench: building target/release/quill
+gate bench: the stage's first client cold-started in 854.965 ms, and is not measured
+gate bench: prose_end_of_draft, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-prose_end_of_draft-20260923T201109.json
+gate bench: prose_middle_of_draft, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-prose_middle_of_draft-20260923T201140.json
+gate bench: prose_focus_sentence, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-prose_focus_sentence-20260923T201211.json
+gate bench: paragraph_breaks, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-paragraph_breaks-20260923T201242.json
+gate bench: revision, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-revision-20260923T201313.json
+gate bench: markdown_syntax, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-markdown_syntax-20260923T201344.json
+gate bench: fence_flip, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-fence_flip-20260923T201415.json
+gate bench: paste_blocks, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-paste_blocks-20260923T201447.json
+gate bench: letters_only_r1, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-letters_only_r1-20260923T201517.json
+gate bench: bursts_and_pauses, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-bursts_and_pauses-20260923T201608.json
+gate bench: fast_typist, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 45 ms, after 25 of warm-up and 28 of top-up
+gate bench: wrote dev/shots/latency/bench-fast_typist-20260923T201626.json
+gate bench: saturation_stress, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 8 ms, after 25 of warm-up and 148 of top-up
+gate bench: wrote dev/shots/latency/bench-saturation_stress-20260923T201633.json
+gate bench: live_end_of_draft, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-live_end_of_draft-20260923T201704.json
+gate bench: preview, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-preview-20260923T201735.json
+gate bench: syntax, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up
+gate bench: wrote dev/shots/latency/bench-syntax-20260923T201807.json
+gate bench: style, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up
+gate bench: wrote dev/shots/latency/bench-style-20260923T201838.json
+gate bench: spell, session 1 of 1
+gate bench: focus is on ours (0x558a1378fa20), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up
+gate bench: wrote dev/shots/latency/bench-spell-20260923T201910.json
+gate bench: annotators, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up
+gate bench: wrote dev/shots/latency/bench-annotators-20260923T201942.json
+gate bench: stats, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-stats-20260923T202032.json
+gate bench: wrote dev/shots/latency/summary-20260923T202032.json

@@ -1,0 +1,12 @@
+gate bench — 2026-09-23T20:05:37.220Z
+gate bench: building target/release/quill
+gate bench: the stage's first client cold-started in 823.431 ms, and is not measured
+gate bench: prose_end_of_draft, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up
+Error: the first measured key went 2148.7 ms before the app said its launch was quiet, so it measured the launch
+    at runSession (file:///home/diggle/repos/quill/.claude/worktrees/late-495/tools/bench.mjs:507:13)
+    at async benchOne (file:///home/diggle/repos/quill/.claude/worktrees/late-495/tools/bench.mjs:549:15)
+    at async bench (file:///home/diggle/repos/quill/.claude/worktrees/late-495/tools/bench.mjs:694:19)
+    at async main (file:///home/diggle/repos/quill/.claude/worktrees/late-495/tools/bench.mjs:916:12)
+    at async file:///home/diggle/repos/quill/.claude/worktrees/late-495/tools/bench.mjs:926:22

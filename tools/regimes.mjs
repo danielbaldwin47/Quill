@@ -167,7 +167,7 @@ export const REFRESH_MS = 1000 / 60;
 // `TITLE_MS`, so eleven keys of three hundred read 13.5–16.9 ms against a 16 ms budget and the
 // regime passed or failed on which side of a refresh the collision landed, on an unchanged build
 // (#349, from #327 round 3). Any new value is one that selftest stays green on.
-export const PAUSE_MS = 1700;
+export const PAUSE_MS = Number(process.env.BENCH_PAUSE_MS || 1700);
 export function regimes(pace = DEFAULT_PACE) {
   return [
     // Plain writing at the end of a draft — the most common case there is, and the one quoted.

@@ -1,0 +1,1 @@
+gate bench: refused (the first measured key went 2148.7 ms before the app said its launch was quiet, so it measured the launch)

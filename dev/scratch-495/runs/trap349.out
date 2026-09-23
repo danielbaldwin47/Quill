@@ -1,0 +1,2 @@
+gate bench bursts_and_pauses: pass — mean 2.79 ms, worst 15.93 ms, p50 2.31 ms, p99 15.11 ms, cold 165.66 ms
+gate bench --regimes bursts_and_pauses: pass — 1 of 1 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)

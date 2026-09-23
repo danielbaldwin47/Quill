@@ -1,0 +1,2 @@
+gate bench prose_end_of_draft: pass — mean 2.36 ms, worst 6.26 ms, p50 2.3 ms, p99 4.42 ms, cold 162.9 ms
+gate bench: refused (the pointer left the window during prose_end_of_draft, so the keys after it were paced by the chrome's fade rather than measured and the run stopped there; dev/shots/latency/summary-20260923T200855.json records it)

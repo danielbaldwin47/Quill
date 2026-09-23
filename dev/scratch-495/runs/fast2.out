@@ -1,0 +1,2 @@
+gate bench fast_typist: pass — mean 2.53 ms, worst 7.2 ms, p50 2.42 ms, p99 4.38 ms, cold 167 ms
+gate bench --regimes fast_typist: pass — 1 of 1 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)

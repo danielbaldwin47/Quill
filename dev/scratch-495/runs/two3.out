@@ -1,0 +1,5 @@
+gate bench prose_end_of_draft: pass — mean 2.29 ms, worst 4.5 ms, p50 2.18 ms, p99 3.87 ms, cold 160.23 ms
+gate bench bursts_and_pauses: pass — mean 2.38 ms, worst 4.27 ms, p50 2.35 ms, p99 3.96 ms, cold 192.59 ms
+gate bench preview: pass — mean 2.28 ms, worst 3.31 ms, p50 2.21 ms, p99 3.23 ms, cold 187.58 ms
+gate bench annotators: pass — mean 2.4 ms, worst 4.47 ms, p50 2.28 ms, p99 4.27 ms, cold 182.94 ms
+gate bench --regimes prose_end_of_draft,bursts_and_pauses,preview,annotators: pass — 4 of 4 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)

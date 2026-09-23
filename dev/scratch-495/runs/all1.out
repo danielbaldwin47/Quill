@@ -1,0 +1,20 @@
+gate bench prose_end_of_draft: pass — mean 2.32 ms, worst 4.53 ms, p50 2.18 ms, p99 4.21 ms, cold 163.66 ms
+gate bench prose_middle_of_draft: pass — mean 3.01 ms, worst 5.7 ms, p50 3.01 ms, p99 4.63 ms, cold 186.25 ms
+gate bench prose_focus_sentence: pass — mean 3.33 ms, worst 5.96 ms, p50 3.14 ms, p99 5.08 ms, cold 186.93 ms
+gate bench paragraph_breaks: pass — mean 2.85 ms, worst 6.07 ms, p50 2.61 ms, p99 5.19 ms, cold 187.05 ms
+gate bench revision: pass — mean 3 ms, worst 6.23 ms, p50 2.9 ms, p99 5.16 ms, cold 189.89 ms
+gate bench markdown_syntax: pass — mean 3.21 ms, worst 6.84 ms, p50 2.77 ms, p99 6.57 ms, cold 188.08 ms
+gate bench fence_flip: pass — mean 2.74 ms, worst 9.19 ms, p50 2.57 ms, p99 3.79 ms, cold 186.54 ms
+gate bench paste_blocks: pass — mean 2.39 ms, worst 8.69 ms, p50 2.16 ms, p99 5.03 ms, cold 186.67 ms
+gate bench letters_only_r1: pass — mean 2.74 ms, worst 5.58 ms, p50 2.56 ms, p99 4.63 ms, cold 191.25 ms
+gate bench bursts_and_pauses: pass — mean 2.26 ms, worst 4.06 ms, p50 2.12 ms, p99 3.72 ms, cold 185.99 ms
+gate bench fast_typist: fail — mean 2.57 ms, worst 18.06 ms, p50 2.4 ms, p99 4.24 ms, cold 195.73 ms
+gate bench saturation_stress: informational — mean 24.59 ms, worst 33.45 ms, p50 24.69 ms, p99 33.37 ms, cold 183.91 ms (not scored: keys share frames at this pace, so a per-keystroke latency grows by construction)
+gate bench live_end_of_draft: pass — mean 2.31 ms, worst 4.15 ms, p50 2.2 ms, p99 3.97 ms, cold 189.16 ms
+gate bench preview: pass — mean 2.28 ms, worst 4.39 ms, p50 2.2 ms, p99 3.32 ms, cold 183.41 ms
+gate bench syntax: pass — mean 2.53 ms, worst 4.58 ms, p50 2.51 ms, p99 3.88 ms, cold 181.89 ms
+gate bench style: pass — mean 2.28 ms, worst 4.3 ms, p50 2.16 ms, p99 3.78 ms, cold 180.67 ms
+gate bench spell: pass — mean 2.31 ms, worst 4.44 ms, p50 2.16 ms, p99 3.67 ms, cold 187.43 ms
+gate bench annotators: pass — mean 2.52 ms, worst 4.51 ms, p50 2.42 ms, p99 4.41 ms, cold 180.95 ms
+gate bench stats: pass — mean 2.32 ms, worst 4.7 ms, p50 2.24 ms, p99 3.75 ms, cold 183.7 ms
+gate bench --all: fail — 17 of 18 scored regimes clear the budget, not fast_typist; saturation_stress informational (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)

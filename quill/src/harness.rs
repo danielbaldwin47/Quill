@@ -260,7 +260,20 @@ pub fn settle(window: &impl IsA<gtk::Widget>, launching: impl Fn() -> bool + 'st
         .ok()
         .and_then(|written| written.trim().parse().ok());
     let clocks = Clocks::now();
-    let launching = Rc::new(launching);
+    let late = std::env::var("QUILL_LATE_WORK_MS").ok().and_then(|v| v.parse::<u64>().ok());
+    let born = glib::monotonic_time();
+    if let Some(ms) = late {
+        let painted = window.as_ref().clone().upcast::<gtk::Widget>();
+        glib::timeout_add_local_once(Duration::from_millis(ms), move || painted.queue_draw());
+    }
+    if let Some(ms) = std::env::var("QUILL_FAKE_LEAVE_MS").ok().and_then(|v| v.parse::<u64>().ok()) {
+        glib::timeout_add_local_once(Duration::from_millis(ms), || {
+            println!("{}", pointer_left_line(glib::monotonic_time()));
+        });
+    }
+    let launching = Rc::new(move || {
+        launching() || late.is_some_and(|ms| glib::monotonic_time() - born < (ms * 1000) as i64)
+    });
     window.add_tick_callback(move |widget, clock| {
         if presented(clock).is_none() {
             return glib::ControlFlow::Continue;

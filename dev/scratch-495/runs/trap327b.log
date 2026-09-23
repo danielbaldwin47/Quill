@@ -1,0 +1,12 @@
+gate bench — 2026-09-23T20:01:01.066Z
+gate bench: building target/release/quill
+gate bench: the stage's first client cold-started in 896.271 ms, and is not measured
+gate bench: prose_end_of_draft, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-prose_end_of_draft-20260923T200134.json
+gate bench: bursts_and_pauses, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-bursts_and_pauses-20260923T200225.json
+gate bench: wrote dev/shots/latency/summary-20260923T200225.json

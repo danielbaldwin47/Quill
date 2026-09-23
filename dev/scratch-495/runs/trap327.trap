@@ -1,0 +1,3 @@
+cursor into the window at [33m800[39m,[33m500[39m then out to [33m1560[39m,[33m990[39m
+error: [string "hl.dispatch(hl.dsp.cursor.move([33m800[39m,..."]:1: unexpected symbol near '<\27>'
+error: [string "hl.dispatch(hl.dsp.cursor.move([33m1560[39m..."]:1: unexpected symbol near '<\27>'

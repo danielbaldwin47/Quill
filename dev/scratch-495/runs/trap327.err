@@ -1,0 +1,8 @@
+assets link: 0 linked from /home/diggle/repos/quill
+gate bench: building target/release/quill
+gate bench: the stage's first client cold-started in 891.97 ms, and is not measured
+gate bench: prose_end_of_draft, session 1 of 1
+gate bench: focus is on ours (0x558a103b5e90), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-prose_end_of_draft-20260923T200855.json
+gate bench: wrote dev/shots/latency/summary-20260923T200855.json
